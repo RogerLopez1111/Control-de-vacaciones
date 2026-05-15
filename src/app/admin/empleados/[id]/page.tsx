@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { calcularSaldo } from "@/lib/saldo";
 import { AjusteForm } from "./ajuste-form";
+import { RoleToggle } from "./role-toggle";
 
 export default async function EmpleadoDetallePage({ params }: { params: Promise<{ id: string }> }) {
   const { id: idStr } = await params;
@@ -10,6 +11,10 @@ export default async function EmpleadoDetallePage({ params }: { params: Promise<
   if (!id) notFound();
 
   const supabase = await createSupabaseServerClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  const { data: caller } = user
+    ? await supabase.from("employees").select("id").eq("auth_user_id", user.id).single()
+    : { data: null };
 
   const [{ data: e }, { data: requests }, { data: adjustments }, { data: branches }] = await Promise.all([
     supabase.from("employees")
@@ -61,6 +66,11 @@ export default async function EmpleadoDetallePage({ params }: { params: Promise<
       <p className="text-xs text-brand-gray">
         Periodo en curso: {fmt(saldo.periodStart)} → {fmt(saldo.periodEnd)}
       </p>
+
+      <section>
+        <h2 className="text-lg font-semibold text-brand-navy mb-2">Permisos</h2>
+        <RoleToggle employeeId={id} isAdmin={!!e.is_admin} isSelf={caller?.id === id} />
+      </section>
 
       <section>
         <h2 className="text-lg font-semibold text-brand-navy mb-2">Ajustar saldo del periodo</h2>
