@@ -88,17 +88,23 @@ export async function getEmpleadosRaw(since?: string): Promise<ErpEmpleado[]> {
     Em_Email, Em_Email_2, Sc_Cve_Sucursal, Em_Reporta, Em_Fecha_Ingreso, Em_Fecha_Baja,
     De_Cve_Departamento_Empleado, Pe_Cve_Puesto_Empleado, Es_Cve_Estado, Fecha_Ult_Modif
   `;
-  // Always filter to active employees (Es_Cve_Estado = 'AC').
-  // ERP keeps historical/terminated rows; the vacation tracker only cares about active staff.
-  const activeFilter = `LTRIM(RTRIM(Es_Cve_Estado)) = 'AC'`;
+  // Filtros:
+  //  1) Es_Cve_Estado = 'AC' — solo empleados activos.
+  //  2) Excluir comisionistas (departamento 9 ó puesto 26). Los comisionistas
+  //     no son empleados con derechos LFT — son figuras asimiladas a salarios
+  //     y no devengan vacaciones en este sistema.
+  const filters = `
+    LTRIM(RTRIM(Es_Cve_Estado)) = 'AC'
+    AND NOT (De_Cve_Departamento_Empleado = 9 OR Pe_Cve_Puesto_Empleado = 26)
+  `;
   if (since) {
     req.input("since", sql.DateTime, new Date(since));
     const r = await req.query<ErpEmpleado>(
-      `SELECT ${baseCols} FROM Empleado WHERE ${activeFilter} AND Fecha_Ult_Modif >= @since`
+      `SELECT ${baseCols} FROM Empleado WHERE ${filters} AND Fecha_Ult_Modif >= @since`
     );
     return r.recordset;
   }
-  const r = await req.query<ErpEmpleado>(`SELECT ${baseCols} FROM Empleado WHERE ${activeFilter}`);
+  const r = await req.query<ErpEmpleado>(`SELECT ${baseCols} FROM Empleado WHERE ${filters}`);
   return r.recordset;
 }
 
