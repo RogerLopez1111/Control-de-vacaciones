@@ -26,22 +26,29 @@ export default async function DashboardPage() {
     );
   }
 
-  const { data: solicitudes } = await supabase
-    .from("vacation_requests")
-    .select("id, start_date, end_date, business_days, status, requested_at, decision_comment")
-    .eq("employee_id", empleado.id)
-    .order("requested_at", { ascending: false });
+  const [{ data: solicitudes }, { data: ajustes }, { count: reportesCount }] = await Promise.all([
+    supabase
+      .from("vacation_requests")
+      .select("id, start_date, end_date, business_days, status, requested_at, decision_comment")
+      .eq("employee_id", empleado.id)
+      .order("requested_at", { ascending: false }),
+    supabase
+      .from("vacation_adjustments")
+      .select("id, period_start, delta_days, reason, adjusted_at")
+      .eq("employee_id", empleado.id)
+      .order("adjusted_at", { ascending: false }),
+    supabase
+      .from("employees")
+      .select("id", { count: "exact", head: true })
+      .eq("manager_employee_id", empleado.id),
+  ]);
 
   const hireDate = new Date(empleado.hire_date);
   const asOf = new Date();
-  const saldo = calcularSaldo(hireDate, asOf, solicitudes ?? []);
+  const saldo = calcularSaldo(hireDate, asOf, solicitudes ?? [], ajustes ?? []);
   const yos = currentYearOfService(hireDate, asOf);
-
-  // ¿Tiene reportes directos? (Para mostrar enlace de aprobaciones)
-  const { count: reportesCount } = await supabase
-    .from("employees")
-    .select("id", { count: "exact", head: true })
-    .eq("manager_employee_id", empleado.id);
+  const periodStartIso = saldo.periodStart.toISOString().slice(0, 10);
+  const ajustesPeriodo = (ajustes ?? []).filter((a) => a.period_start === periodStartIso);
 
   return (
     <main className="mx-auto max-w-3xl p-6 space-y-6">
@@ -68,15 +75,36 @@ export default async function DashboardPage() {
           {(reportesCount && reportesCount > 0) || empleado.is_admin ? (
             <Link href="/aprobaciones" className="rounded-md border border-brand-navy text-brand-navy px-3 py-2 hover:bg-brand-navy-tint">Aprobaciones</Link>
           ) : null}
+          {empleado.is_admin && (
+            <Link href="/admin/empleados" className="rounded-md border border-brand-navy text-brand-navy px-3 py-2 hover:bg-brand-navy-tint">Empleados</Link>
+          )}
         </nav>
       </header>
 
-      <section className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <Stat label="A los que tienes derecho" value={saldo.entitlement} />
+      <section className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+        <Stat label="Derecho" value={saldo.entitlement} />
+        <Stat label="Ajustes" value={saldo.adjustments} signed />
         <Stat label="Tomados" value={saldo.taken} />
         <Stat label="Pendientes" value={saldo.pending} />
         <Stat label="Disponibles" value={saldo.available} highlight />
       </section>
+
+      {ajustesPeriodo.length > 0 && (
+        <section>
+          <h2 className="text-lg font-medium text-brand-navy mb-2">Ajustes de RRHH (este periodo)</h2>
+          <ul className="border border-neutral-200 bg-white divide-y divide-neutral-100">
+            {ajustesPeriodo.map((a) => (
+              <li key={a.id} className="px-3 py-2 text-sm flex items-baseline gap-3">
+                <span className={`tabular-nums font-medium ${a.delta_days > 0 ? "text-green-700" : "text-brand-red"}`}>
+                  {a.delta_days > 0 ? `+${a.delta_days}` : a.delta_days}
+                </span>
+                <span className="flex-1">{a.reason}</span>
+                <span className="text-xs text-brand-gray">{fmtISO(a.adjusted_at)}</span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       <section>
         <h2 className="text-lg font-medium text-brand-navy mb-2">Tus solicitudes</h2>
@@ -111,11 +139,12 @@ export default async function DashboardPage() {
   );
 }
 
-function Stat({ label, value, highlight }: { label: string; value: number; highlight?: boolean }) {
+function Stat({ label, value, highlight, signed }: { label: string; value: number; highlight?: boolean; signed?: boolean }) {
+  const display = signed && value > 0 ? `+${value}` : value;
   return (
     <div className={`border p-4 ${highlight ? "border-brand-navy bg-brand-navy text-white" : "border-neutral-200 bg-white"}`}>
       <div className={`text-xs ${highlight ? "text-neutral-300" : "text-brand-gray"}`}>{label}</div>
-      <div className="mt-1 text-2xl font-semibold tabular-nums">{value}</div>
+      <div className="mt-1 text-2xl font-semibold tabular-nums">{display}</div>
     </div>
   );
 }

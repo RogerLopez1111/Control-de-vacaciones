@@ -3,13 +3,15 @@ import { currentYearOfService, entitlementForCurrentYear, lastAnniversary, nextA
 export interface SaldoVacaciones {
   /** Año de servicio en curso (1 = primer año, 2 = segundo, ...). */
   yearOfService: number;
-  /** Días totales a los que tiene derecho en este periodo anual. */
+  /** Días totales a los que tiene derecho en este periodo anual (LFT). */
   entitlement: number;
+  /** Suma de ajustes manuales (RRHH) dentro del periodo en curso (puede ser negativa). */
+  adjustments: number;
   /** Días ya aprobados (o tomados) dentro del periodo en curso. */
   taken: number;
   /** Días pendientes de aprobación dentro del periodo en curso. */
   pending: number;
-  /** Días disponibles = entitlement - taken - pending. */
+  /** Días disponibles = entitlement + adjustments - taken - pending. */
   available: number;
   /** Inicio del periodo en curso (último aniversario o fecha de ingreso). */
   periodStart: Date;
@@ -32,11 +34,16 @@ export function calcularSaldo(
     end_date: string;
     business_days: number;
     status: "pendiente" | "aprobada" | "rechazada" | "cancelada";
-  }>
+  }>,
+  adjustments: ReadonlyArray<{
+    period_start: string;
+    delta_days: number;
+  }> = []
 ): SaldoVacaciones {
   const periodStart = lastAnniversary(hireDate, asOf);
   const periodEnd = nextAnniversary(hireDate, asOf);
   const entitlement = entitlementForCurrentYear(hireDate, asOf);
+  const periodStartIso = isoDate(periodStart);
 
   let taken = 0;
   let pending = 0;
@@ -48,13 +55,26 @@ export function calcularSaldo(
     else if (r.status === "pendiente") pending += r.business_days;
   }
 
+  let adjustmentsSum = 0;
+  for (const a of adjustments) {
+    if (a.period_start === periodStartIso) adjustmentsSum += a.delta_days;
+  }
+
   return {
     yearOfService: currentYearOfService(hireDate, asOf),
     entitlement,
+    adjustments: adjustmentsSum,
     taken,
     pending,
-    available: entitlement - taken - pending,
+    available: entitlement + adjustmentsSum - taken - pending,
     periodStart,
     periodEnd,
   };
+}
+
+function isoDate(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
 }
