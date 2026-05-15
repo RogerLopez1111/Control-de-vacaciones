@@ -71,12 +71,21 @@ describe("currentYearOfService", () => {
   });
 });
 
-describe("entitlementForCurrentYear", () => {
-  it("empleado con 0 años cumplidos (año 1 en curso) → 12 días", () => {
-    expect(entitlementForCurrentYear(new Date(2026, 0, 1), new Date(2026, 4, 15))).toBe(12);
+describe("entitlementForCurrentYear (Art. 76 LFT — primer año = 0 días)", () => {
+  it("aún no cumple un año → 0 días", () => {
+    expect(entitlementForCurrentYear(new Date(2026, 0, 1), new Date(2026, 4, 15))).toBe(0);
   });
-  it("empleado con 5 años cumplidos (año 6 en curso) → 22 días", () => {
-    expect(entitlementForCurrentYear(new Date(2021, 0, 1), new Date(2026, 4, 15))).toBe(22);
+  it("justo en el primer aniversario → 12 días", () => {
+    expect(entitlementForCurrentYear(new Date(2025, 4, 15), new Date(2026, 4, 15))).toBe(12);
+  });
+  it("un día antes del primer aniversario → todavía 0", () => {
+    expect(entitlementForCurrentYear(new Date(2025, 4, 15), new Date(2026, 4, 14))).toBe(0);
+  });
+  it("5 años cumplidos → 20 días", () => {
+    expect(entitlementForCurrentYear(new Date(2021, 0, 1), new Date(2026, 4, 15))).toBe(20);
+  });
+  it("6 años cumplidos → 22 días", () => {
+    expect(entitlementForCurrentYear(new Date(2020, 0, 1), new Date(2026, 4, 15))).toBe(22);
   });
 });
 

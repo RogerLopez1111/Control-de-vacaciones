@@ -1,29 +1,33 @@
 /**
- * Días de vacaciones según la Ley Federal del Trabajo (México) —
- * reforma de enero 2023 (Art. 76 LFT).
+ * Días de vacaciones según el Art. 76 LFT (México) — reforma 2023.
  *
- *   Año 1   → 12 días
- *   Año 2   → 14
- *   Año 3   → 16
- *   Año 4   → 18
- *   Año 5   → 20
- *   Año 6-10  → 22
- *   Año 11-15 → 24
- *   Año 16-20 → 26
- *   Año 21-25 → 28
- *   Año 26-30 → 30
- *   Año 31-35 → 32   (+2 días por cada bloque adicional de 5 años)
+ * El derecho a vacaciones se devenga DESPUÉS de cumplir un año completo de
+ * servicio. Durante el primer año (de la fecha de ingreso al primer
+ * aniversario) el empleado tiene 0 días de vacaciones.
+ *
+ * Tabla por años de servicio CUMPLIDOS:
+ *   0 años  → 0  días (primer año en curso, aún no cumple)
+ *   1 año   → 12
+ *   2       → 14
+ *   3       → 16
+ *   4       → 18
+ *   5       → 20
+ *   6-10    → 22
+ *   11-15   → 24
+ *   16-20   → 26
+ *   21-25   → 28
+ *   26-30   → 30
+ *   31-35   → 32   (+2 días por cada bloque de 5 años subsecuentes)
  */
-export function lftDaysForYear(yearOfService: number): number {
-  if (yearOfService < 1) return 0;
-  if (yearOfService === 1) return 12;
-  if (yearOfService === 2) return 14;
-  if (yearOfService === 3) return 16;
-  if (yearOfService === 4) return 18;
-  if (yearOfService === 5) return 20;
-  // From year 6 onward: +2 días por cada bloque de 5 años de servicio.
-  // yrs 6-10 → +1 bloque (22), 11-15 → +2 (24), 16-20 → +3 (26), ...
-  const extraBlocks = Math.floor((yearOfService - 6) / 5) + 1;
+export function lftDaysForYear(yearsCompleted: number): number {
+  if (yearsCompleted < 1) return 0;
+  if (yearsCompleted === 1) return 12;
+  if (yearsCompleted === 2) return 14;
+  if (yearsCompleted === 3) return 16;
+  if (yearsCompleted === 4) return 18;
+  if (yearsCompleted === 5) return 20;
+  // 6-10 cumplidos → +1 bloque (22), 11-15 → +2 (24), 16-20 → +3 (26), ...
+  const extraBlocks = Math.floor((yearsCompleted - 6) / 5) + 1;
   return 20 + extraBlocks * 2;
 }
 
@@ -39,9 +43,8 @@ export function yearsOfServiceAt(hireDate: Date, asOf: Date): number {
 }
 
 /**
- * Año de servicio en curso al `asOf` (años completos + 1, mínimo 1 si ya ingresó).
- * Ej.: hireDate 2024-05-15, asOf 2026-05-15 → 3er año (completó 2, va por el 3ro).
- * Si todavía no llega al primer aniversario, devuelve 1 (el año 1 está en curso).
+ * Año de servicio en curso (1 = primer año, antes del primer aniversario).
+ * Sirve solo para mostrar en UI ("vas en tu Nº año"); NO para calcular días.
  */
 export function currentYearOfService(hireDate: Date, asOf: Date): number {
   if (asOf < hireDate) return 0;
@@ -49,12 +52,12 @@ export function currentYearOfService(hireDate: Date, asOf: Date): number {
 }
 
 /**
- * Total de días de vacaciones a los que el empleado tiene derecho en el periodo
- * anual en curso (entre el último aniversario y el siguiente).
+ * Total de días de vacaciones a los que el empleado tiene derecho en el
+ * periodo anual en curso. Se basa en años CUMPLIDOS (no en el año en curso),
+ * por lo que durante el primer año el resultado es 0.
  */
 export function entitlementForCurrentYear(hireDate: Date, asOf: Date): number {
-  const y = currentYearOfService(hireDate, asOf);
-  return lftDaysForYear(y);
+  return lftDaysForYear(yearsOfServiceAt(hireDate, asOf));
 }
 
 /**
