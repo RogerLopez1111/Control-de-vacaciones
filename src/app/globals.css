@@ -1,0 +1,50 @@
+@import "@fontsource-variable/montserrat";
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ============================================================================
+ * Ecosistemas — visual identity
+ *   #B70B0F red   |  #141456 navy  |  #686868 gray
+ *   Montserrat Variable everywhere · flat aesthetic (no shadows, square cards)
+ * ============================================================================ */
+
+:root {
+  --brand-red: #b70b0f;
+  --brand-red-tint: #fbe7e8;
+  --brand-navy: #141456;
+  --brand-navy-tint: #e7e7f0;
+  --brand-gray: #686868;
+}
+
+@layer base {
+  html, body {
+    font-family: "Montserrat Variable", Montserrat, system-ui, -apple-system, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+  h1, h2, h3, h4, h5, h6 {
+    letter-spacing: -0.01em;
+    font-weight: 600;
+  }
+  /* Force Montserrat on form controls / code (they wouldn't inherit otherwise) */
+  input, textarea, select, button, code, kbd, samp, pre, tt {
+    font-family: "Montserrat Variable", Montserrat, system-ui, sans-serif;
+  }
+  code, kbd, samp, pre, tt, .font-mono {
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum" 1;
+  }
+}
+
+/* Flat aesthetic — kill shadows + container radii to match Ecosistemas storefront */
+@layer base {
+  *, *::before, *::after {
+    --tw-shadow: 0 0 #0000;
+  }
+  [class*="shadow-"], [class*="drop-shadow-"] {
+    box-shadow: none !important;
+    filter: none !important;
+  }
+}
