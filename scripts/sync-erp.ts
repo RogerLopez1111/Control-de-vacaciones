@@ -87,10 +87,15 @@ async function syncEmpleados(since: string | null) {
   }
   console.log(`✓ employees upserted: ${upserted} / ${payload.length}${since ? ` (delta desde ${since})` : ""}`);
 
-  // Pass 2 — link manager_employee_id (Em_Reporta) now that all rows exist.
+  // Pass 2 — link manager_employee_id (Em_Reporta).
+  // Only attempt links where the target manager actually exists in our active set.
+  // Em_Reporta in the ERP can be 0 (sentinela "sin jefe") or point to terminated
+  // employees not in our AC subset; both cases would otherwise FK-violate.
+  const validIds = new Set(payload.map((p) => p.id));
   const managerLinks = normalized
-    .filter((e) => e.Em_Reporta != null)
+    .filter((e) => e.Em_Reporta != null && e.Em_Reporta > 0 && validIds.has(e.Em_Reporta))
     .map((e) => ({ id: e.Em_Cve_Empleado, manager_employee_id: e.Em_Reporta }));
+  const skipped = normalized.filter((e) => e.Em_Reporta != null && e.Em_Reporta > 0 && !validIds.has(e.Em_Reporta)).length;
 
   let failed = 0;
   for (const u of managerLinks) {
@@ -100,7 +105,11 @@ async function syncEmpleados(since: string | null) {
       .eq("id", u.id);
     if (error) failed++;
   }
-  console.log(`✓ manager links updated: ${managerLinks.length - failed}${failed ? ` (${failed} failed)` : ""}`);
+  console.log(
+    `✓ manager links updated: ${managerLinks.length - failed}` +
+    (failed ? ` (${failed} failed)` : "") +
+    (skipped ? ` · ${skipped} omitidos (jefe inactivo o fuera del subset)` : "")
+  );
 }
 
 // ---------------------------------------------------------------------------

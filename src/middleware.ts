@@ -4,8 +4,11 @@ import { NextResponse, type NextRequest } from "next/server";
 type CookieToSet = { name: string; value: string; options: CookieOptions };
 
 /**
- * Refreshes the Supabase auth session on every request, and redirects
- * unauthenticated users to /login (except for the login routes themselves).
+ * - Refresca la sesión de Supabase en cada request.
+ * - Redirige a /login si no hay sesión.
+ * - Fuerza /cambiar-contrasena si el usuario aún tiene la contraseña default
+ *   (user_metadata.password_default === true). Ese flag se baja en el flujo
+ *   de cambio de contraseña.
  */
 export async function middleware(request: NextRequest) {
   let response = NextResponse.next({ request });
@@ -28,13 +31,29 @@ export async function middleware(request: NextRequest) {
   );
 
   const { data: { user } } = await supabase.auth.getUser();
+  const path = request.nextUrl.pathname;
+  const isLogin = path.startsWith("/login");
+  const isPwChange = path.startsWith("/cambiar-contrasena");
 
-  const isAuthRoute = request.nextUrl.pathname.startsWith("/login")
-    || request.nextUrl.pathname.startsWith("/auth");
-
-  if (!user && !isAuthRoute) {
+  if (!user) {
+    if (isLogin) return response;
     const url = request.nextUrl.clone();
     url.pathname = "/login";
+    return NextResponse.redirect(url);
+  }
+
+  // Está autenticado. Si todavía usa la contraseña default, forzar cambio.
+  const isDefaultPassword = user.user_metadata?.password_default === true;
+  if (isDefaultPassword && !isPwChange) {
+    const url = request.nextUrl.clone();
+    url.pathname = "/cambiar-contrasena";
+    return NextResponse.redirect(url);
+  }
+
+  // Autenticado y con contraseña real: si pisa /login o /cambiar-contrasena, mándalo al dashboard.
+  if (isLogin || (isPwChange && !isDefaultPassword)) {
+    const url = request.nextUrl.clone();
+    url.pathname = "/";
     return NextResponse.redirect(url);
   }
 

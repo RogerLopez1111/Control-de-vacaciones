@@ -53,6 +53,7 @@ export async function getSucursalesRaw(): Promise<ErpSucursal[]> {
   const r = await p.request().query<ErpSucursal>(`
     SELECT Sc_Cve_Sucursal, Sc_Descripcion, Es_Cve_Estado
     FROM Sucursal
+    WHERE LTRIM(RTRIM(Es_Cve_Estado)) = 'AC'
     ORDER BY Sc_Descripcion
   `);
   return r.recordset;
@@ -87,14 +88,17 @@ export async function getEmpleadosRaw(since?: string): Promise<ErpEmpleado[]> {
     Em_Email, Em_Email_2, Sc_Cve_Sucursal, Em_Reporta, Em_Fecha_Ingreso, Em_Fecha_Baja,
     De_Cve_Departamento_Empleado, Pe_Cve_Puesto_Empleado, Es_Cve_Estado, Fecha_Ult_Modif
   `;
+  // Always filter to active employees (Es_Cve_Estado = 'AC').
+  // ERP keeps historical/terminated rows; the vacation tracker only cares about active staff.
+  const activeFilter = `LTRIM(RTRIM(Es_Cve_Estado)) = 'AC'`;
   if (since) {
     req.input("since", sql.DateTime, new Date(since));
     const r = await req.query<ErpEmpleado>(
-      `SELECT ${baseCols} FROM Empleado WHERE Fecha_Ult_Modif >= @since`
+      `SELECT ${baseCols} FROM Empleado WHERE ${activeFilter} AND Fecha_Ult_Modif >= @since`
     );
     return r.recordset;
   }
-  const r = await req.query<ErpEmpleado>(`SELECT ${baseCols} FROM Empleado`);
+  const r = await req.query<ErpEmpleado>(`SELECT ${baseCols} FROM Empleado WHERE ${activeFilter}`);
   return r.recordset;
 }
 

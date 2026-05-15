@@ -9,7 +9,8 @@
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "sync:erp": "tsx scripts/sync-erp.ts"
+    "sync:erp": "tsx scripts/sync-erp.ts",
+    "auth:bootstrap": "tsx scripts/bootstrap-auth.ts"
   },
   "dependencies": {
     "next": "^15.0.0",
