@@ -4,6 +4,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { calcularSaldo } from "@/lib/saldo";
 import { AjusteForm } from "./ajuste-form";
 import { RoleToggle } from "./role-toggle";
+import { AreaPicker } from "./area-picker";
 
 export default async function EmpleadoDetallePage({ params }: { params: Promise<{ id: string }> }) {
   const { id: idStr } = await params;
@@ -16,9 +17,9 @@ export default async function EmpleadoDetallePage({ params }: { params: Promise<
     ? await supabase.from("employees").select("id").eq("auth_user_id", user.id).single()
     : { data: null };
 
-  const [{ data: e }, { data: requests }, { data: adjustments }, { data: branches }] = await Promise.all([
+  const [{ data: e }, { data: requests }, { data: adjustments }, { data: branches }, { data: areas }] = await Promise.all([
     supabase.from("employees")
-      .select("id, codigo_alterno, nombre, apellido_paterno, apellido_materno, email, branch_id, hire_date, is_admin, password_changed_at")
+      .select("id, codigo_alterno, nombre, apellido_paterno, apellido_materno, email, branch_id, hire_date, is_admin, password_changed_at, area_id, manager_employee_id")
       .eq("id", id)
       .single(),
     supabase.from("vacation_requests")
@@ -30,6 +31,7 @@ export default async function EmpleadoDetallePage({ params }: { params: Promise<
       .eq("employee_id", id)
       .order("adjusted_at", { ascending: false }),
     supabase.from("branches").select("id, nombre"),
+    supabase.from("areas").select("id, nombre").order("display_order"),
   ]);
 
   if (!e) notFound();
@@ -68,8 +70,11 @@ export default async function EmpleadoDetallePage({ params }: { params: Promise<
       </p>
 
       <section>
-        <h2 className="text-lg font-semibold text-brand-navy mb-2">Permisos</h2>
-        <RoleToggle employeeId={id} isAdmin={!!e.is_admin} isSelf={caller?.id === id} />
+        <h2 className="text-lg font-semibold text-brand-navy mb-2">Área y permisos</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <AreaPicker employeeId={id} currentAreaId={e.area_id} areas={areas ?? []} />
+          <RoleToggle employeeId={id} isAdmin={!!e.is_admin} isSelf={caller?.id === id} />
+        </div>
       </section>
 
       <section>
