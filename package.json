@@ -20,6 +20,7 @@
     "@supabase/ssr": "^0.5.0",
     "@fontsource-variable/montserrat": "^5.2.8",
     "date-fns": "^4.1.0",
+    "nodemailer": "^7.0.0",
     "zod": "^3.23.0"
   },
   "devDependencies": {
@@ -35,6 +36,7 @@
     "@eslint/eslintrc": "^3.0.0",
     "mssql": "^11.0.0",
     "@types/mssql": "^9.1.0",
+    "@types/nodemailer": "^7.0.0",
     "tsx": "^4.19.0",
     "dotenv": "^16.4.0",
     "vitest": "^2.1.0"

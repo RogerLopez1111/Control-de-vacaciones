@@ -24,10 +24,7 @@ export default async function SolicitarPage() {
     <main className="mx-auto max-w-xl p-6 space-y-6">
       <Link href="/" className="text-sm text-neutral-600 hover:text-neutral-900">← Volver</Link>
       <h1 className="text-2xl font-semibold">Solicitar vacaciones</h1>
-      <SolicitarForm
-        employeeId={empleado.id}
-        holidays={(holidays ?? []).map((h) => h.date)}
-      />
+      <SolicitarForm holidays={(holidays ?? []).map((h) => h.date)} />
     </main>
   );
 }

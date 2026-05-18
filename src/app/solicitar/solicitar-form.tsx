@@ -1,22 +1,20 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { countBusinessDays } from "@/lib/business-days";
+import { submitVacationRequest } from "./actions";
 
 export function SolicitarForm({
-  employeeId,
   holidays,
 }: {
-  employeeId: number;
   holidays: string[];
 }) {
   const router = useRouter();
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [comment, setComment] = useState("");
-  const [submitting, setSubmitting] = useState(false);
+  const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
   const holidaySet = useMemo(() => new Set(holidays), [holidays]);
@@ -26,7 +24,7 @@ export function SolicitarForm({
     return countBusinessDays(new Date(startDate), new Date(endDate), holidaySet);
   }, [startDate, endDate, holidaySet]);
 
-  async function handleSubmit(e: React.FormEvent) {
+  function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
     if (!startDate || !endDate) return;
@@ -39,23 +37,20 @@ export function SolicitarForm({
       return;
     }
 
-    setSubmitting(true);
-    const supabase = createSupabaseBrowserClient();
-    const { error } = await supabase.from("vacation_requests").insert({
-      employee_id: employeeId,
-      start_date: startDate,
-      end_date: endDate,
-      business_days: businessDays,
-      employee_comment: comment || null,
+    startTransition(async () => {
+      const result = await submitVacationRequest({
+        start_date: startDate,
+        end_date: endDate,
+        business_days: businessDays,
+        employee_comment: comment.trim() || null,
+      });
+      if (!result.ok) {
+        setError(result.error ?? "Error al enviar la solicitud.");
+        return;
+      }
+      router.push("/");
+      router.refresh();
     });
-    setSubmitting(false);
-
-    if (error) {
-      setError(error.message);
-      return;
-    }
-    router.push("/");
-    router.refresh();
   }
 
   const todayIso = new Date().toISOString().slice(0, 10);
@@ -102,15 +97,15 @@ export function SolicitarForm({
         />
       </label>
 
-      {error && <p className="text-sm text-red-600">{error}</p>}
+      {error && <p className="text-sm text-brand-red">{error}</p>}
 
       <div className="flex gap-2">
         <button
           type="submit"
-          disabled={submitting || businessDays <= 0}
+          disabled={pending || businessDays <= 0}
           className="rounded-md bg-brand-red px-4 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50"
         >
-          {submitting ? "Enviando..." : "Enviar solicitud"}
+          {pending ? "Enviando..." : "Enviar solicitud"}
         </button>
       </div>
     </form>
