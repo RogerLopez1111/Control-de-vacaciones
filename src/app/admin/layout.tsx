@@ -23,6 +23,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
           <span className="font-semibold text-brand-navy">Admin</span>
           <Link href="/admin/empleados" className="text-brand-gray hover:text-brand-navy">Empleados</Link>
           <Link href="/admin/organigrama" className="text-brand-gray hover:text-brand-navy">Organigrama</Link>
+          <Link href="/admin/diagnosticos" className="text-brand-gray hover:text-brand-navy">Diagnósticos</Link>
         </div>
       </div>
       {children}
