@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { createSupabaseBrowserClient } from "@/lib/supabase/client";
+import { decideVacationRequest } from "./actions";
 
 interface RequestRow {
   id: string;
@@ -19,7 +19,6 @@ interface RequestRow {
 
 export function AprobacionRow({
   request,
-  approverId,
   canApprove,
 }: {
   request: RequestRow;
@@ -28,28 +27,23 @@ export function AprobacionRow({
 }) {
   const router = useRouter();
   const [comment, setComment] = useState("");
-  const [busy, setBusy] = useState(false);
+  const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
   const emp = Array.isArray(request.employee) ? request.employee[0] : request.employee;
   const empName = emp ? `${emp.nombre} ${emp.apellido_paterno ?? ""}`.trim() : "—";
 
-  async function decide(status: "aprobada" | "rechazada") {
-    setBusy(true);
+  function decide(status: "aprobada" | "rechazada") {
     setError(null);
-    const supabase = createSupabaseBrowserClient();
-    const { error } = await supabase
-      .from("vacation_requests")
-      .update({
+    startTransition(async () => {
+      const r = await decideVacationRequest({
+        requestId: request.id,
         status,
-        decided_at: new Date().toISOString(),
-        decided_by_employee_id: approverId,
-        decision_comment: comment || null,
-      })
-      .eq("id", request.id);
-    setBusy(false);
-    if (error) { setError(error.message); return; }
-    router.refresh();
+        comment: comment.trim() || null,
+      });
+      if (!r.ok) { setError(r.error ?? "Error al guardar la decisión."); return; }
+      router.refresh();
+    });
   }
 
   return (
@@ -86,18 +80,18 @@ export function AprobacionRow({
           />
           <div className="flex gap-2">
             <button
-              disabled={busy}
+              disabled={pending}
               onClick={() => decide("aprobada")}
               className="rounded-md bg-green-700 px-3 py-2 text-sm font-medium text-white hover:bg-green-800 disabled:opacity-50"
             >
-              Aprobar
+              {pending ? "..." : "Aprobar"}
             </button>
             <button
-              disabled={busy}
+              disabled={pending}
               onClick={() => decide("rechazada")}
               className="rounded-md bg-brand-red px-3 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50"
             >
-              Rechazar
+              {pending ? "..." : "Rechazar"}
             </button>
           </div>
         </div>

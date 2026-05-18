@@ -94,6 +94,76 @@ export async function sendVacationRequestNotification(p: VacationRequestEmailPar
   }
 }
 
+export interface VacationDecisionEmailParams {
+  to: string[];                     // empleado solicitante
+  employeeName: string;             // saludo
+  decision: "aprobada" | "rechazada";
+  decidedBy: string;                // quien aprobó/rechazó
+  startDate: string;
+  endDate: string;
+  businessDays: number;
+  decisionComment: string | null;
+  dashboardUrl: string;
+}
+
+export async function sendVacationDecisionNotification(p: VacationDecisionEmailParams): Promise<void> {
+  const transport = getTransport();
+  const recipients = [...new Set(p.to.filter((x) => x && x.includes("@")))];
+  if (!transport || recipients.length === 0) {
+    console.warn(`[email] saltando notificación de decisión (transport=${!!transport}, recipients=${recipients.length})`);
+    return;
+  }
+
+  const verb = p.decision === "aprobada" ? "aprobada" : "rechazada";
+  const subject = `[Vacaciones] Tu solicitud fue ${verb}`;
+  const dateRange = p.startDate === p.endDate
+    ? fmt(p.startDate)
+    : `${fmt(p.startDate)} → ${fmt(p.endDate)}`;
+
+  const text = [
+    `Hola ${p.employeeName},`,
+    ``,
+    `Tu solicitud de vacaciones (${dateRange}, ${p.businessDays} día${p.businessDays === 1 ? "" : "s"} hábil${p.businessDays === 1 ? "" : "es"}) fue ${verb} por ${p.decidedBy}.`,
+    p.decisionComment ? `\nComentario: ${p.decisionComment}` : null,
+    ``,
+    `Ver detalles: ${p.dashboardUrl}`,
+  ].filter(Boolean).join("\n");
+
+  const accentColor = p.decision === "aprobada" ? "#15803d" : "#B70B0F";
+  const html = `
+    <div style="font-family: 'Segoe UI', Roboto, sans-serif; color: #141456; max-width: 480px;">
+      <p style="font-size: 15px; margin: 0 0 12px;">Hola <strong>${escapeHtml(p.employeeName)}</strong>,</p>
+      <p style="font-size: 14px; margin: 0 0 12px;">
+        Tu solicitud de vacaciones fue
+        <strong style="color: ${accentColor};">${verb}</strong>
+        por ${escapeHtml(p.decidedBy)}.
+      </p>
+      <table style="border-collapse: collapse; font-size: 14px;">
+        <tr><td style="padding: 4px 12px 4px 0; color: #686868;">Fechas</td><td>${escapeHtml(dateRange)}</td></tr>
+        <tr><td style="padding: 4px 12px 4px 0; color: #686868;">Días hábiles</td><td><strong>${p.businessDays}</strong></td></tr>
+        ${p.decisionComment ? `<tr><td style="padding: 4px 12px 4px 0; color: #686868; vertical-align: top;">Comentario</td><td>${escapeHtml(p.decisionComment)}</td></tr>` : ""}
+      </table>
+      <p style="margin: 18px 0 0;">
+        <a href="${p.dashboardUrl}" style="display: inline-block; background: #141456; color: white; text-decoration: none; padding: 10px 18px; font-weight: 600;">Ver en el sistema</a>
+      </p>
+      <p style="font-size: 12px; color: #686868; margin-top: 24px;">Control de Vacaciones — Ecosistemas</p>
+    </div>
+  `;
+
+  try {
+    await transport.sendMail({
+      from: process.env.SMTP_FROM ?? process.env.SMTP_USER!,
+      to: recipients.join(", "),
+      subject,
+      text,
+      html,
+    });
+    console.log(`[email] decisión enviada a ${recipients.length} destinatario(s)`);
+  } catch (err) {
+    console.error("[email] envío de decisión falló:", err);
+  }
+}
+
 function fmt(iso: string): string {
   return new Date(iso + "T12:00:00").toLocaleDateString("es-MX", {
     day: "2-digit", month: "short", year: "numeric",
