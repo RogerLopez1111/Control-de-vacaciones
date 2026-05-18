@@ -5,6 +5,7 @@ import { calcularSaldo } from "@/lib/saldo";
 import { AjusteForm } from "./ajuste-form";
 import { RoleToggle } from "./role-toggle";
 import { AreaPicker } from "./area-picker";
+import { NotificationEmailForm } from "./notification-email-form";
 
 export default async function EmpleadoDetallePage({ params }: { params: Promise<{ id: string }> }) {
   const { id: idStr } = await params;
@@ -19,7 +20,7 @@ export default async function EmpleadoDetallePage({ params }: { params: Promise<
 
   const [{ data: e }, { data: requests }, { data: adjustments }, { data: branches }, { data: areas }] = await Promise.all([
     supabase.from("employees")
-      .select("id, codigo_alterno, nombre, apellido_paterno, apellido_materno, email, branch_id, hire_date, is_admin, password_changed_at, area_id, manager_employee_id")
+      .select("id, codigo_alterno, nombre, apellido_paterno, apellido_materno, email, notification_email, branch_id, hire_date, is_admin, password_changed_at, area_id, manager_employee_id")
       .eq("id", id)
       .single(),
     supabase.from("vacation_requests")
@@ -75,6 +76,15 @@ export default async function EmpleadoDetallePage({ params }: { params: Promise<
           <AreaPicker employeeId={id} currentAreaId={e.area_id} areas={areas ?? []} />
           <RoleToggle employeeId={id} isAdmin={!!e.is_admin} isSelf={caller?.id === id} />
         </div>
+      </section>
+
+      <section>
+        <h2 className="text-lg font-semibold text-brand-navy mb-2">Correo corporativo de notificaciones</h2>
+        <NotificationEmailForm
+          employeeId={id}
+          currentNotificationEmail={e.notification_email}
+          fallbackEmail={e.email}
+        />
       </section>
 
       <section>

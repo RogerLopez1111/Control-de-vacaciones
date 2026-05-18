@@ -71,11 +71,15 @@ export async function submitVacationRequest(input: SubmitVacationRequestInput): 
 
     let emails: string[] = [];
     if (recipientIds.length > 0) {
+      // Preferimos notification_email (corporativo, RRHH-controlado) sobre
+      // email (personal, sincronizado del ERP).
       const { data: rows } = await admin
         .from("employees")
-        .select("email")
+        .select("notification_email, email")
         .in("id", recipientIds);
-      emails = (rows ?? []).map((r) => r.email ?? "").filter((e) => !!e);
+      emails = (rows ?? [])
+        .map((r) => r.notification_email ?? r.email ?? "")
+        .filter((e) => !!e);
     }
 
     const employeeName = [empleado.nombre, empleado.apellido_paterno].filter(Boolean).join(" ");

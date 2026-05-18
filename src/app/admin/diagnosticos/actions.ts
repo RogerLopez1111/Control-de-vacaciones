@@ -35,16 +35,17 @@ export async function sendTestEmail(overrideTo?: string): Promise<TestEmailResul
 
   const { data: me } = await supabase
     .from("employees")
-    .select("id, nombre, email, is_admin")
+    .select("id, nombre, email, notification_email, is_admin")
     .eq("auth_user_id", user.id)
     .single();
   if (!me?.is_admin) return { ok: false, error: "Solo admin puede correr este diagnóstico.", smtpConfigured, envSummary };
 
-  const recipient = (overrideTo?.trim() || me.email || "").toLowerCase();
+  const fallback = me.notification_email ?? me.email ?? "";
+  const recipient = (overrideTo?.trim() || fallback).toLowerCase();
   if (!recipient || !recipient.includes("@")) {
     return {
       ok: false,
-      error: `No hay correo destino válido. Tu employees.email = ${me.email ?? "(vacío)"}. Especifica uno manualmente.`,
+      error: `No hay correo destino válido. Tu notification_email = ${me.notification_email ?? "(vacío)"}, email = ${me.email ?? "(vacío)"}. Especifica uno manualmente.`,
       smtpConfigured,
       envSummary,
     };
