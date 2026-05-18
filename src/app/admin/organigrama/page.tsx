@@ -1,11 +1,13 @@
 import Link from "next/link";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { SupervisorPicker } from "./supervisor-picker";
+import { WatcherPicker } from "./watcher-picker";
 
 interface AreaRow {
   id: string;
   nombre: string;
   supervisor_employee_id: number | null;
+  watcher_employee_id: number | null;
   parent_area_id: string | null;
   display_order: number;
 }
@@ -20,7 +22,7 @@ export default async function OrganigramaPage() {
   const supabase = await createSupabaseServerClient();
 
   const [{ data: areas }, { data: employees }] = await Promise.all([
-    supabase.from("areas").select("id, nombre, supervisor_employee_id, parent_area_id, display_order").order("display_order"),
+    supabase.from("areas").select("id, nombre, supervisor_employee_id, watcher_employee_id, parent_area_id, display_order").order("display_order"),
     supabase.from("employees").select("id, nombre, apellido_paterno, area_id").is("termination_date", null).order("apellido_paterno"),
   ]);
 
@@ -71,7 +73,7 @@ export default async function OrganigramaPage() {
               </div>
 
               <div>
-                <p className="text-xs text-brand-gray mb-1">Supervisor</p>
+                <p className="text-xs text-brand-gray mb-1">Supervisor (aprueba)</p>
                 <SupervisorPicker
                   areaId={a.id}
                   currentSupervisorId={a.supervisor_employee_id}
@@ -82,6 +84,15 @@ export default async function OrganigramaPage() {
                     Aprueba a {members.filter((m) => m.id !== supervisor.id).length} empleado{members.length === 2 ? "" : "s"} de esta área.
                   </p>
                 )}
+              </div>
+
+              <div>
+                <p className="text-xs text-brand-gray mb-1">Observador (solo lectura + notificación)</p>
+                <WatcherPicker
+                  areaId={a.id}
+                  currentWatcherId={a.watcher_employee_id}
+                  empleados={allEmps}
+                />
               </div>
 
               {members.length > 0 && (

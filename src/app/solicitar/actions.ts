@@ -27,6 +27,7 @@ export async function submitVacationRequest(input: SubmitVacationRequestInput): 
     .eq("auth_user_id", user.id)
     .single();
   if (empErr || !empleado) return { ok: false, error: "No se encontró tu registro de empleado." };
+  const empleadoForEmail = empleado;
 
   // El insert va con la sesión del usuario para que RLS valide
   // (employee_id = auth_employee_id(), empleado activo, etc.).
@@ -46,6 +47,18 @@ export async function submitVacationRequest(input: SubmitVacationRequestInput): 
     const admin = createSupabaseAdminClient();
     const recipientIds: number[] = [];
     if (empleado.manager_employee_id) recipientIds.push(empleado.manager_employee_id);
+
+    // Observador del área (si existe)
+    if (empleadoForEmail.area_id) {
+      const { data: area } = await admin
+        .from("areas")
+        .select("watcher_employee_id")
+        .eq("id", empleadoForEmail.area_id)
+        .single();
+      if (area?.watcher_employee_id && !recipientIds.includes(area.watcher_employee_id)) {
+        recipientIds.push(area.watcher_employee_id);
+      }
+    }
 
     const { data: admins } = await admin
       .from("employees")
