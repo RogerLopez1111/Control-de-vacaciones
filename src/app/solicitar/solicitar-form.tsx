@@ -65,7 +65,13 @@ export function SolicitarForm({
             required
             min={todayIso}
             value={startDate}
-            onChange={(e) => setStartDate(e.target.value)}
+            onChange={(e) => {
+              const v = e.target.value;
+              setStartDate(v);
+              // Para solicitudes de un solo día: si "Hasta" está vacío o
+              // quedó antes de "Desde", lo igualamos al nuevo inicio.
+              if (v && (!endDate || endDate < v)) setEndDate(v);
+            }}
             className="mt-1 w-full rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm"
           />
         </label>
@@ -84,7 +90,9 @@ export function SolicitarForm({
 
       <div className="rounded-md bg-neutral-100 p-3 text-sm">
         Días hábiles solicitados: <strong>{businessDays}</strong>
-        <span className="text-neutral-500"> (se excluyen sábados, domingos y feriados)</span>
+        <span className="text-neutral-500">
+          {" "}(se excluyen sábados, domingos y feriados). Para un solo día, deja la misma fecha en &ldquo;Desde&rdquo; y &ldquo;Hasta&rdquo;.
+        </span>
       </div>
 
       <label className="block">
