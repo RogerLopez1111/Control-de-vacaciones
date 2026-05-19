@@ -45,6 +45,7 @@ export default async function DashboardPage() {
   const hireDate = new Date(empleado.hire_date);
   const asOf = new Date();
   const saldo = calcularSaldo(hireDate, asOf, solicitudes ?? [], ajustes ?? []);
+  const todayIso = asOf.toISOString().slice(0, 10);
   const periodStartIso = saldo.periodStart.toISOString().slice(0, 10);
   const ajustesPeriodo = (ajustes ?? []).filter((a) => a.period_start === periodStartIso);
 
@@ -116,20 +117,31 @@ export default async function DashboardPage() {
                 <th className="px-3 py-2">Días</th>
                 <th className="px-3 py-2">Estatus</th>
                 <th className="px-3 py-2">Solicitada</th>
+                <th className="px-3 py-2"></th>
               </tr>
             </thead>
             <tbody>
               {(solicitudes ?? []).length === 0 ? (
-                <tr><td className="px-3 py-6 text-center text-neutral-500" colSpan={5}>Aún no has solicitado vacaciones.</td></tr>
-              ) : (solicitudes!.map((s) => (
-                <tr key={s.id} className="border-t border-neutral-100">
-                  <td className="px-3 py-2">{fmtISO(s.start_date)}</td>
-                  <td className="px-3 py-2">{fmtISO(s.end_date)}</td>
-                  <td className="px-3 py-2">{s.business_days}</td>
-                  <td className="px-3 py-2"><StatusBadge status={s.status} /></td>
-                  <td className="px-3 py-2 text-neutral-500">{fmtISO(s.requested_at)}</td>
-                </tr>
-              )))}
+                <tr><td className="px-3 py-6 text-center text-neutral-500" colSpan={6}>Aún no has solicitado vacaciones.</td></tr>
+              ) : (solicitudes!.map((s) => {
+                const isEditable = s.start_date > todayIso && (s.status === "pendiente" || s.status === "aprobada");
+                return (
+                  <tr key={s.id} className="border-t border-neutral-100">
+                    <td className="px-3 py-2">{fmtISO(s.start_date)}</td>
+                    <td className="px-3 py-2">{fmtISO(s.end_date)}</td>
+                    <td className="px-3 py-2">{s.business_days}</td>
+                    <td className="px-3 py-2"><StatusBadge status={s.status} /></td>
+                    <td className="px-3 py-2 text-neutral-500">{fmtISO(s.requested_at)}</td>
+                    <td className="px-3 py-2 text-right">
+                      {isEditable && (
+                        <Link href={`/solicitar/editar/${s.id}`} className="text-brand-red hover:underline text-xs">
+                          Modificar
+                        </Link>
+                      )}
+                    </td>
+                  </tr>
+                );
+              }))}
             </tbody>
           </table>
         </div>

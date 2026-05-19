@@ -11,6 +11,10 @@ export interface SubmitVacationRequestInput {
   employee_comment: string | null;
 }
 
+export interface UpdateVacationRequestInput extends SubmitVacationRequestInput {
+  request_id: string;
+}
+
 export interface SubmitResult {
   ok: boolean;
   error?: string;
@@ -97,6 +101,88 @@ export async function submitVacationRequest(input: SubmitVacationRequestInput): 
     });
   } catch (err) {
     console.error("[solicitar] notificación falló:", err);
+  }
+
+  return { ok: true };
+}
+
+/**
+ * Modifica una solicitud futura propia. Si era aprobada vuelve a pendiente
+ * y se re-notifica al supervisor para que vuelva a autorizar con las nuevas fechas.
+ */
+export async function updateVacationRequest(input: UpdateVacationRequestInput): Promise<SubmitResult> {
+  const supabase = await createSupabaseServerClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { ok: false, error: "No autenticado." };
+
+  const { data: empleado, error: empErr } = await supabase
+    .from("employees")
+    .select("id, nombre, apellido_paterno, manager_employee_id, area_id")
+    .eq("auth_user_id", user.id)
+    .single();
+  if (empErr || !empleado) return { ok: false, error: "No se encontró tu registro de empleado." };
+
+  const { error: rpcErr } = await supabase.rpc("update_vacation_request", {
+    request_id: input.request_id,
+    new_start_date: input.start_date,
+    new_end_date: input.end_date,
+    new_business_days: input.business_days,
+    new_employee_comment: input.employee_comment,
+  });
+  if (rpcErr) return { ok: false, error: rpcErr.message };
+
+  // Re-notifica al supervisor/observador/admin de las nuevas fechas — best-effort.
+  try {
+    const admin = createSupabaseAdminClient();
+    const recipientIds: number[] = [];
+    if (empleado.manager_employee_id) recipientIds.push(empleado.manager_employee_id);
+
+    if (empleado.area_id) {
+      const { data: area } = await admin
+        .from("areas")
+        .select("watcher_employee_id")
+        .eq("id", empleado.area_id)
+        .single();
+      if (area?.watcher_employee_id && !recipientIds.includes(area.watcher_employee_id)) {
+        recipientIds.push(area.watcher_employee_id);
+      }
+    }
+
+    const { data: admins } = await admin
+      .from("employees")
+      .select("id, email")
+      .eq("is_admin", true)
+      .is("termination_date", null);
+    for (const a of admins ?? []) {
+      if (!recipientIds.includes(a.id)) recipientIds.push(a.id);
+    }
+
+    let emails: string[] = [];
+    if (recipientIds.length > 0) {
+      const { data: rows } = await admin
+        .from("employees")
+        .select("notification_email, email")
+        .in("id", recipientIds);
+      emails = (rows ?? [])
+        .map((r) => r.notification_email ?? r.email ?? "")
+        .filter((e) => !!e);
+    }
+
+    const employeeName = [empleado.nombre, empleado.apellido_paterno].filter(Boolean).join(" ");
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "")
+      ?? (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "http://localhost:3000");
+
+    await sendVacationRequestNotification({
+      to: emails,
+      employeeName: `${employeeName} (solicitud modificada)`,
+      startDate: input.start_date,
+      endDate: input.end_date,
+      businessDays: input.business_days,
+      employeeComment: input.employee_comment,
+      approvalUrl: `${baseUrl}/aprobaciones`,
+    });
+  } catch (err) {
+    console.error("[solicitar] re-notificación falló:", err);
   }
 
   return { ok: true };

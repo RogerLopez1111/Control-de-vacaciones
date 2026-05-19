@@ -3,17 +3,27 @@
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { countBusinessDays } from "@/lib/business-days";
-import { submitVacationRequest } from "./actions";
+import { submitVacationRequest, updateVacationRequest } from "./actions";
+
+export interface InitialRequest {
+  requestId: string;
+  startDate: string;
+  endDate: string;
+  comment: string;
+}
 
 export function SolicitarForm({
   holidays,
+  initial,
 }: {
   holidays: string[];
+  initial?: InitialRequest;
 }) {
   const router = useRouter();
-  const [startDate, setStartDate] = useState("");
-  const [endDate, setEndDate] = useState("");
-  const [comment, setComment] = useState("");
+  const editing = !!initial;
+  const [startDate, setStartDate] = useState(initial?.startDate ?? "");
+  const [endDate, setEndDate] = useState(initial?.endDate ?? "");
+  const [comment, setComment] = useState(initial?.comment ?? "");
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
@@ -38,14 +48,17 @@ export function SolicitarForm({
     }
 
     startTransition(async () => {
-      const result = await submitVacationRequest({
+      const payload = {
         start_date: startDate,
         end_date: endDate,
         business_days: businessDays,
         employee_comment: comment.trim() || null,
-      });
+      };
+      const result = editing
+        ? await updateVacationRequest({ request_id: initial!.requestId, ...payload })
+        : await submitVacationRequest(payload);
       if (!result.ok) {
-        setError(result.error ?? "Error al enviar la solicitud.");
+        setError(result.error ?? "Error al guardar la solicitud.");
         return;
       }
       router.push("/");
@@ -57,6 +70,12 @@ export function SolicitarForm({
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4 rounded-md border border-neutral-200 bg-white p-5">
+      {editing && (
+        <p className="rounded-md bg-amber-50 border border-amber-300 text-amber-900 text-sm p-2">
+          Estás modificando una solicitud existente. Si estaba aprobada, volverá a quedar pendiente y tu supervisor tendrá que autorizarla de nuevo.
+        </p>
+      )}
+
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <label className="block">
           <span className="text-sm text-neutral-700">Desde</span>
@@ -68,8 +87,6 @@ export function SolicitarForm({
             onChange={(e) => {
               const v = e.target.value;
               setStartDate(v);
-              // Para solicitudes de un solo día: si "Hasta" está vacío o
-              // quedó antes de "Desde", lo igualamos al nuevo inicio.
               if (v && (!endDate || endDate < v)) setEndDate(v);
             }}
             className="mt-1 w-full rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm"
@@ -113,7 +130,7 @@ export function SolicitarForm({
           disabled={pending || businessDays <= 0}
           className="rounded-md bg-brand-red px-4 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50"
         >
-          {pending ? "Enviando..." : "Enviar solicitud"}
+          {pending ? "Guardando..." : editing ? "Guardar cambios" : "Enviar solicitud"}
         </button>
       </div>
     </form>
