@@ -1,8 +1,8 @@
-import { currentYearOfService, entitlementForCurrentYear, lastAnniversary, nextAnniversary } from "./lft-entitlement";
+import { entitlementForCurrentYear, lastAnniversary, nextAnniversary, yearsOfServiceAt } from "./lft-entitlement";
 
 export interface SaldoVacaciones {
-  /** Año de servicio en curso (1 = primer año, 2 = segundo, ...). */
-  yearOfService: number;
+  /** Años CUMPLIDOS de servicio (antigüedad real al `asOf`). 0 antes del primer aniversario. */
+  yearsCompleted: number;
   /** Días totales a los que tiene derecho en este periodo anual (LFT). */
   entitlement: number;
   /** Suma de ajustes manuales (RRHH) dentro del periodo en curso (puede ser negativa). */
@@ -61,7 +61,7 @@ export function calcularSaldo(
   }
 
   return {
-    yearOfService: currentYearOfService(hireDate, asOf),
+    yearsCompleted: yearsOfServiceAt(hireDate, asOf),
     entitlement,
     adjustments: adjustmentsSum,
     taken,

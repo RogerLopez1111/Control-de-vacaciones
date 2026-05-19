@@ -2,7 +2,6 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { calcularSaldo } from "@/lib/saldo";
-import { currentYearOfService } from "@/lib/lft-entitlement";
 
 export default async function DashboardPage() {
   const supabase = await createSupabaseServerClient();
@@ -46,7 +45,6 @@ export default async function DashboardPage() {
   const hireDate = new Date(empleado.hire_date);
   const asOf = new Date();
   const saldo = calcularSaldo(hireDate, asOf, solicitudes ?? [], ajustes ?? []);
-  const yos = currentYearOfService(hireDate, asOf);
   const periodStartIso = saldo.periodStart.toISOString().slice(0, 10);
   const ajustesPeriodo = (ajustes ?? []).filter((a) => a.period_start === periodStartIso);
 
@@ -66,7 +64,7 @@ export default async function DashboardPage() {
             Hola, {empleado.nombre}
           </h1>
           <p className="text-sm text-brand-gray">
-            Año de servicio: <strong>{yos}</strong> · Periodo:{" "}
+            Antigüedad: <strong>{saldo.yearsCompleted} año{saldo.yearsCompleted === 1 ? "" : "s"}</strong> · Periodo:{" "}
             {fmt(saldo.periodStart)} → {fmt(saldo.periodEnd)}
           </p>
         </div>

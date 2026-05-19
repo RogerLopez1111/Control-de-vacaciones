@@ -60,7 +60,7 @@ export default async function EmpleadoDetallePage({ params }: { params: Promise<
       </header>
 
       <section className="grid grid-cols-2 sm:grid-cols-5 gap-3">
-        <Stat label="Año" value={saldo.yearOfService} />
+        <Stat label="Antigüedad" value={saldo.yearsCompleted} />
         <Stat label="Derecho" value={saldo.entitlement} />
         <Stat label="Ajustes" value={saldo.adjustments} signed />
         <Stat label="Tomados / Pend." value={`${saldo.taken} / ${saldo.pending}`} />

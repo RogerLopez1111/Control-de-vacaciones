@@ -66,7 +66,7 @@ export default async function AdminEmpleadosPage() {
               <th className="px-3 py-2">Nombre</th>
               <th className="px-3 py-2">Sucursal</th>
               <th className="px-3 py-2">Ingreso</th>
-              <th className="px-3 py-2 text-right">Año</th>
+              <th className="px-3 py-2 text-right">Antigüedad</th>
               <th className="px-3 py-2 text-right">Derecho</th>
               <th className="px-3 py-2 text-right">Ajustes</th>
               <th className="px-3 py-2 text-right">Tomados</th>
@@ -85,7 +85,7 @@ export default async function AdminEmpleadosPage() {
                 </td>
                 <td className="px-3 py-2 text-brand-gray">{branch}</td>
                 <td className="px-3 py-2 tabular-nums text-brand-gray">{e.hire_date}</td>
-                <td className="px-3 py-2 text-right tabular-nums">{saldo.yearOfService}</td>
+                <td className="px-3 py-2 text-right tabular-nums">{saldo.yearsCompleted}</td>
                 <td className="px-3 py-2 text-right tabular-nums">{saldo.entitlement}</td>
                 <td className={`px-3 py-2 text-right tabular-nums ${saldo.adjustments !== 0 ? "font-medium" : "text-brand-gray"}`}>
                   {saldo.adjustments > 0 ? `+${saldo.adjustments}` : saldo.adjustments}
