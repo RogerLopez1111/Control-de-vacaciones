@@ -85,25 +85,25 @@ export default async function ComprobantePage({
       </div>
 
       {/* Documento */}
-      <article className="bg-white p-10 print:p-12 border border-neutral-200 print:border-0 text-[13px] leading-relaxed text-brand-navy">
-        <header className="flex items-start justify-between border-b border-brand-navy pb-4 mb-6">
+      <article className="bg-white p-6 print:p-0 border border-neutral-200 print:border-0 text-[12px] leading-snug text-brand-navy">
+        <header className="flex items-start justify-between border-b border-brand-navy pb-2 mb-3">
           <img
             src="https://cdn.shopify.com/s/files/1/0771/6975/4358/files/logo-footer_fc28a06e-0691-4e47-83e3-d3888c3202bb.png?v=1759271820"
             alt="Ecosistemas"
-            className="h-12"
+            className="h-10"
           />
-          <div className="text-right text-xs text-brand-gray">
+          <div className="text-right text-[10px] text-brand-gray">
             <div>Folio: <strong className="font-mono text-brand-navy">{folio}</strong></div>
             <div>Emitido: {fmtDate(new Date())}</div>
           </div>
         </header>
 
-        <h1 className="text-center text-xl font-bold uppercase tracking-wide mb-6">
+        <h1 className="text-center text-base font-bold uppercase tracking-wide mb-3">
           Autorización de Vacaciones
         </h1>
 
-        <section className="mb-5">
-          <h2 className="text-xs uppercase tracking-wide text-brand-gray border-b border-neutral-200 pb-1 mb-2">Empleado</h2>
+        <section className="mb-3">
+          <h2 className="text-[10px] uppercase tracking-wide text-brand-gray border-b border-neutral-200 pb-0.5 mb-1.5">Empleado</h2>
           <table className="w-full">
             <tbody>
               <Row label="Nombre" value={empleadoNombre} />
@@ -116,8 +116,8 @@ export default async function ComprobantePage({
           </table>
         </section>
 
-        <section className="mb-5">
-          <h2 className="text-xs uppercase tracking-wide text-brand-gray border-b border-neutral-200 pb-1 mb-2">Periodo autorizado</h2>
+        <section className="mb-3">
+          <h2 className="text-[10px] uppercase tracking-wide text-brand-gray border-b border-neutral-200 pb-0.5 mb-1.5">Periodo autorizado</h2>
           <table className="w-full">
             <tbody>
               <Row label="Desde" value={fmtIso(req.start_date)} />
@@ -128,10 +128,10 @@ export default async function ComprobantePage({
         </section>
 
         {(req.employee_comment || req.decision_comment) && (
-          <section className="mb-5">
-            <h2 className="text-xs uppercase tracking-wide text-brand-gray border-b border-neutral-200 pb-1 mb-2">Observaciones</h2>
+          <section className="mb-3">
+            <h2 className="text-[10px] uppercase tracking-wide text-brand-gray border-b border-neutral-200 pb-0.5 mb-1.5">Observaciones</h2>
             {req.employee_comment && (
-              <p className="mb-2"><span className="text-brand-gray">Empleado:</span> {req.employee_comment}</p>
+              <p className="mb-1"><span className="text-brand-gray">Empleado:</span> {req.employee_comment}</p>
             )}
             {req.decision_comment && (
               <p><span className="text-brand-gray">Autorización:</span> {req.decision_comment}</p>
@@ -139,34 +139,34 @@ export default async function ComprobantePage({
           </section>
         )}
 
-        <section className="mb-12">
-          <h2 className="text-xs uppercase tracking-wide text-brand-gray border-b border-neutral-200 pb-1 mb-2">Autorización</h2>
+        <section className="mb-6">
+          <h2 className="text-[10px] uppercase tracking-wide text-brand-gray border-b border-neutral-200 pb-0.5 mb-1.5">Autorización</h2>
           <p>Autorizado el <strong>{fmtIso(req.decided_at ?? "")}</strong> por <strong>{aprobadoPor}</strong>.</p>
         </section>
 
         {/* Firmas */}
-        <section className="grid grid-cols-2 gap-12 mt-20">
+        <section className="grid grid-cols-2 gap-8 mt-10">
           <div className="text-center">
-            <div className="border-t border-brand-navy pt-2">
-              <p className="text-xs text-brand-gray uppercase tracking-wide">Empleado</p>
-              <p className="font-medium mt-1">{empleadoNombre}</p>
+            <div className="border-t border-brand-navy pt-1.5">
+              <p className="text-[10px] text-brand-gray uppercase tracking-wide">Empleado</p>
+              <p className="font-medium mt-0.5">{empleadoNombre}</p>
             </div>
           </div>
           <div className="text-center">
-            <div className="border-t border-brand-navy pt-2">
-              <p className="text-xs text-brand-gray uppercase tracking-wide">Autorizó</p>
-              <p className="font-medium mt-1">{aprobadoPor}</p>
+            <div className="border-t border-brand-navy pt-1.5">
+              <p className="text-[10px] text-brand-gray uppercase tracking-wide">Autorizó</p>
+              <p className="font-medium mt-0.5">{aprobadoPor}</p>
             </div>
           </div>
         </section>
 
-        <footer className="mt-12 pt-4 border-t border-neutral-200 text-[10px] text-brand-gray text-center">
+        <footer className="mt-6 pt-2 border-t border-neutral-200 text-[9px] text-brand-gray text-center">
           Fundamento legal: Artículo 76 de la Ley Federal del Trabajo · Documento generado por el Sistema de Control de Vacaciones de Ecosistemas.
         </footer>
       </article>
 
       <style>{`
-        @page { size: Letter; margin: 18mm; }
+        @page { size: Letter; margin: 10mm 12mm; }
         @media print {
           html, body { background: white; }
         }
