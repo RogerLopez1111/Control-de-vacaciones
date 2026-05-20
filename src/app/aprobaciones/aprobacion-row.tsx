@@ -22,7 +22,6 @@ export function AprobacionRow({
   canApprove,
 }: {
   request: RequestRow;
-  approverId: number;
   canApprove: boolean;
 }) {
   const router = useRouter();
