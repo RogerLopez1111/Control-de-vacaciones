@@ -3,6 +3,7 @@ import Link from "next/link";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { yearsOfServiceAt } from "@/lib/lft-entitlement";
 import { PrintButton } from "./print-button";
+import { AutoPrintTrigger } from "./auto-print-trigger";
 
 interface RequestData {
   id: string;
@@ -78,6 +79,7 @@ export default async function ComprobantePage({
 
   return (
     <main className="mx-auto max-w-3xl p-6 print:p-0">
+      <AutoPrintTrigger />
       {/* Acciones (no se imprimen) */}
       <div className="mb-4 flex items-center justify-between print:hidden">
         <Link href="/" className="text-sm text-brand-gray hover:text-brand-navy">← Volver</Link>

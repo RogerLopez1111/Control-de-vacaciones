@@ -34,13 +34,25 @@ export function AprobacionRow({
 
   function decide(status: "aprobada" | "rechazada") {
     setError(null);
+    // Pre-abre una pestaña antes del await: los navegadores solo permiten
+    // window.open desde un gesto de usuario directo. Si la aprobación falla
+    // o la decisión fue "rechazada", la cerramos.
+    const printWindow = status === "aprobada" ? window.open("about:blank", "_blank") : null;
+
     startTransition(async () => {
       const r = await decideVacationRequest({
         requestId: request.id,
         status,
         comment: comment.trim() || null,
       });
-      if (!r.ok) { setError(r.error ?? "Error al guardar la decisión."); return; }
+      if (!r.ok) {
+        printWindow?.close();
+        setError(r.error ?? "Error al guardar la decisión.");
+        return;
+      }
+      if (printWindow) {
+        printWindow.location.href = `/comprobante/${request.id}?autoprint=1`;
+      }
       router.refresh();
     });
   }
