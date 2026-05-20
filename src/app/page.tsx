@@ -132,7 +132,12 @@ export default async function DashboardPage() {
                     <td className="px-3 py-2">{s.business_days}</td>
                     <td className="px-3 py-2"><StatusBadge status={s.status} /></td>
                     <td className="px-3 py-2 text-neutral-500">{fmtISO(s.requested_at)}</td>
-                    <td className="px-3 py-2 text-right">
+                    <td className="px-3 py-2 text-right space-x-3">
+                      {s.status === "aprobada" && (
+                        <Link href={`/comprobante/${s.id}`} className="text-brand-navy hover:underline text-xs">
+                          Comprobante
+                        </Link>
+                      )}
                       {isEditable && (
                         <Link href={`/solicitar/editar/${s.id}`} className="text-brand-red hover:underline text-xs">
                           Modificar

@@ -148,6 +148,13 @@ export default async function EmpleadoDetallePage({ params }: { params: Promise<
                     <td className="px-3 py-2 text-right tabular-nums">{r.business_days}</td>
                     <td className="px-3 py-2">{r.status}</td>
                     <td className="px-3 py-2 text-brand-gray">{fmtISO(r.requested_at)}</td>
+                    <td className="px-3 py-2 text-right">
+                      {r.status === "aprobada" && (
+                        <Link href={`/comprobante/${r.id}`} className="text-brand-navy hover:underline text-xs">
+                          Comprobante
+                        </Link>
+                      )}
+                    </td>
                   </tr>
                 ))}
               </tbody>
