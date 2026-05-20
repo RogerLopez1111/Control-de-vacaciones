@@ -31,11 +31,20 @@ interface ComputedRow {
   e: EmpleadoRow;
   saldo: SaldoVacaciones;
   branch: string;
+  area: string | null;
 }
 
+type GroupBy = "area" | "sucursal";
 const COL_COUNT = 11;
 
-export default async function AdminEmpleadosPage() {
+export default async function AdminEmpleadosPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ por?: string }>;
+}) {
+  const { por } = await searchParams;
+  const groupBy: GroupBy = por === "sucursal" ? "sucursal" : "area";
+
   const supabase = await createSupabaseServerClient();
 
   const [{ data: employees }, { data: branches }, { data: areas }, { data: requests }, { data: adjustments }] = await Promise.all([
@@ -44,7 +53,7 @@ export default async function AdminEmpleadosPage() {
       .select("id, nombre, apellido_paterno, branch_id, hire_date, is_admin, area_id")
       .is("termination_date", null)
       .order("apellido_paterno"),
-    supabase.from("branches").select("id, nombre"),
+    supabase.from("branches").select("id, nombre").order("nombre"),
     supabase.from("areas").select("id, nombre, display_order").order("display_order"),
     supabase.from("vacation_requests").select("employee_id, start_date, end_date, business_days, status"),
     supabase.from("vacation_adjustments").select("employee_id, period_start, delta_days"),
@@ -52,39 +61,47 @@ export default async function AdminEmpleadosPage() {
 
   const branchById = new Map<number, string>();
   for (const b of (branches ?? []) as BranchRow[]) branchById.set(b.id, b.nombre);
+  const areaById = new Map<string, string>();
+  for (const a of (areas ?? []) as AreaRow[]) areaById.set(a.id, a.nombre);
 
-  const reqByEmployee = groupBy<RequestRow, number>((requests ?? []) as RequestRow[], (r) => r.employee_id);
-  const adjByEmployee = groupBy<AdjustmentRow, number>((adjustments ?? []) as AdjustmentRow[], (a) => a.employee_id);
+  const reqByEmployee = mapBy<RequestRow, number>((requests ?? []) as RequestRow[], (r) => r.employee_id);
+  const adjByEmployee = mapBy<AdjustmentRow, number>((adjustments ?? []) as AdjustmentRow[], (a) => a.employee_id);
 
   const asOf = new Date();
   const computed: ComputedRow[] = ((employees ?? []) as EmpleadoRow[]).map((e) => {
     const saldo = calcularSaldo(new Date(e.hire_date), asOf, reqByEmployee.get(e.id) ?? [], adjByEmployee.get(e.id) ?? []);
-    return { e, saldo, branch: e.branch_id ? branchById.get(e.branch_id) ?? "—" : "—" };
+    return {
+      e,
+      saldo,
+      branch: e.branch_id ? branchById.get(e.branch_id) ?? "—" : "—",
+      area: e.area_id ? areaById.get(e.area_id) ?? null : null,
+    };
   });
 
-  // Agrupar por área (área null = "Sin área asignada", siempre al final).
-  const rowsByArea = new Map<string | null, ComputedRow[]>();
-  for (const r of computed) {
-    const key = r.e.area_id;
-    const list = rowsByArea.get(key);
-    if (list) list.push(r); else rowsByArea.set(key, [r]);
-  }
-
-  const orderedAreas = (areas ?? []) as AreaRow[];
-  const sections: { label: string; sublabel?: string; rows: ComputedRow[] }[] = [];
-  for (const a of orderedAreas) {
-    const rows = rowsByArea.get(a.id);
-    if (!rows?.length) continue;
-    sections.push({ label: a.nombre, rows });
-  }
-  const sinArea = rowsByArea.get(null);
-  if (sinArea?.length) sections.push({ label: "Sin área asignada", sublabel: "asígnale un área desde el detalle", rows: sinArea });
+  // Construye las secciones según el agrupamiento elegido.
+  const sections = buildSections(computed, groupBy, areas ?? [], branches ?? []);
 
   return (
     <main className="mx-auto max-w-6xl p-6 space-y-4">
       <div className="flex items-baseline justify-between">
         <h1 className="text-2xl font-semibold text-brand-navy">Empleados</h1>
-        <span className="text-sm text-brand-gray">{computed.length} empleados activos · {sections.length} áreas</span>
+        <span className="text-sm text-brand-gray">{computed.length} empleados activos · {sections.length} {groupBy === "area" ? "áreas" : "sucursales"}</span>
+      </div>
+
+      <div className="flex items-center gap-2 text-sm">
+        <span className="text-brand-gray">Agrupar por:</span>
+        <Link
+          href="/admin/empleados?por=area"
+          className={`rounded-md px-3 py-1.5 ${groupBy === "area" ? "bg-brand-navy text-white" : "border border-neutral-300 text-brand-navy hover:bg-neutral-50"}`}
+        >
+          Área
+        </Link>
+        <Link
+          href="/admin/empleados?por=sucursal"
+          className={`rounded-md px-3 py-1.5 ${groupBy === "sucursal" ? "bg-brand-navy text-white" : "border border-neutral-300 text-brand-navy hover:bg-neutral-50"}`}
+        >
+          Sucursal
+        </Link>
       </div>
 
       <div className="overflow-x-auto border border-neutral-200 bg-white">
@@ -93,7 +110,7 @@ export default async function AdminEmpleadosPage() {
             <tr>
               <th className="px-3 py-2">ID</th>
               <th className="px-3 py-2">Nombre</th>
-              <th className="px-3 py-2">Sucursal</th>
+              <th className="px-3 py-2">{groupBy === "area" ? "Sucursal" : "Área"}</th>
               <th className="px-3 py-2">Ingreso</th>
               <th className="px-3 py-2 text-right">Antigüedad</th>
               <th className="px-3 py-2 text-right">Derecho</th>
@@ -106,7 +123,7 @@ export default async function AdminEmpleadosPage() {
           </thead>
           <tbody>
             {sections.map((s) => (
-              <SectionGroup key={s.label} label={s.label} sublabel={s.sublabel} rows={s.rows} />
+              <SectionGroup key={s.key} label={s.label} sublabel={s.sublabel} rows={s.rows} secondaryColumn={groupBy === "area" ? "branch" : "area"} />
             ))}
           </tbody>
         </table>
@@ -115,7 +132,51 @@ export default async function AdminEmpleadosPage() {
   );
 }
 
-function SectionGroup({ label, sublabel, rows }: { label: string; sublabel?: string; rows: ComputedRow[] }) {
+function buildSections(
+  computed: ComputedRow[],
+  groupBy: GroupBy,
+  areas: { id: string; nombre: string; display_order: number }[],
+  branches: { id: number; nombre: string }[],
+): { key: string; label: string; sublabel?: string; rows: ComputedRow[] }[] {
+  const byKey = new Map<string | null, ComputedRow[]>();
+  for (const r of computed) {
+    const k: string | null = groupBy === "area"
+      ? r.e.area_id
+      : (r.e.branch_id != null ? String(r.e.branch_id) : null);
+    const list = byKey.get(k);
+    if (list) list.push(r); else byKey.set(k, [r]);
+  }
+
+  const sections: { key: string; label: string; sublabel?: string; rows: ComputedRow[] }[] = [];
+  if (groupBy === "area") {
+    for (const a of areas) {
+      const rows = byKey.get(a.id);
+      if (rows?.length) sections.push({ key: a.id, label: a.nombre, rows });
+    }
+    const sin = byKey.get(null);
+    if (sin?.length) sections.push({ key: "sin-area", label: "Sin área asignada", sublabel: "asígnale un área desde el detalle", rows: sin });
+  } else {
+    for (const b of branches) {
+      const rows = byKey.get(String(b.id));
+      if (rows?.length) sections.push({ key: String(b.id), label: b.nombre, rows });
+    }
+    const sin = byKey.get(null);
+    if (sin?.length) sections.push({ key: "sin-sucursal", label: "Sin sucursal", rows: sin });
+  }
+  return sections;
+}
+
+function SectionGroup({
+  label,
+  sublabel,
+  rows,
+  secondaryColumn,
+}: {
+  label: string;
+  sublabel?: string;
+  rows: ComputedRow[];
+  secondaryColumn: "branch" | "area";
+}) {
   return (
     <>
       <tr className="bg-brand-navy-tint border-t-2 border-brand-navy">
@@ -127,14 +188,16 @@ function SectionGroup({ label, sublabel, rows }: { label: string; sublabel?: str
           </span>
         </td>
       </tr>
-      {rows.map(({ e, saldo, branch }) => (
+      {rows.map(({ e, saldo, branch, area }) => (
         <tr key={e.id} className="border-t border-neutral-100 hover:bg-neutral-50">
           <td className="px-3 py-2 tabular-nums text-brand-gray">{e.id}</td>
           <td className="px-3 py-2">
             {e.nombre} {e.apellido_paterno ?? ""}
             {e.is_admin && <span className="ml-2 rounded-full bg-brand-navy-tint text-brand-navy text-xs px-2 py-0.5">admin</span>}
           </td>
-          <td className="px-3 py-2 text-brand-gray">{branch}</td>
+          <td className="px-3 py-2 text-brand-gray">
+            {secondaryColumn === "branch" ? branch : (area ?? "—")}
+          </td>
           <td className="px-3 py-2 tabular-nums text-brand-gray">{e.hire_date}</td>
           <td className="px-3 py-2 text-right tabular-nums">{saldo.yearsCompleted}</td>
           <td className="px-3 py-2 text-right tabular-nums">{saldo.entitlement}</td>
@@ -153,7 +216,7 @@ function SectionGroup({ label, sublabel, rows }: { label: string; sublabel?: str
   );
 }
 
-function groupBy<T, K>(arr: ReadonlyArray<T>, key: (t: T) => K): Map<K, T[]> {
+function mapBy<T, K>(arr: ReadonlyArray<T>, key: (t: T) => K): Map<K, T[]> {
   const m = new Map<K, T[]>();
   for (const x of arr) {
     const k = key(x);
