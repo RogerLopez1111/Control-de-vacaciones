@@ -31,14 +31,14 @@ export function SolicitarForm({
 
   const businessDays = useMemo(() => {
     if (!startDate || !endDate) return 0;
-    return countBusinessDays(new Date(startDate), new Date(endDate), holidaySet);
+    return countBusinessDays(startDate, endDate, holidaySet);
   }, [startDate, endDate, holidaySet]);
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
     if (!startDate || !endDate) return;
-    if (new Date(endDate) < new Date(startDate)) {
+    if (endDate < startDate) {
       setError("La fecha final debe ser igual o posterior a la inicial.");
       return;
     }
