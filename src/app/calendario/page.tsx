@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 
 interface RequestWithEmployee {
   id: string;
@@ -48,8 +49,13 @@ export default async function CalendarioPage({
   const monthEnd = new Date(year, month + 1, 1);
   const todayIso = isoDate(today);
 
-  // RLS filtra automáticamente lo que el usuario tiene derecho a ver.
-  const { data: requests } = await supabase
+  // El calendario muestra TODAS las vacaciones a TODOS los empleados
+  // autenticados — visibilidad global a propósito. Usamos el service role
+  // server-side (bypassa RLS) y solo renderizamos campos no sensibles
+  // (nombre, fechas, estatus). Los comentarios y otros datos siguen
+  // protegidos por RLS para queries directas del browser.
+  const admin = createSupabaseAdminClient();
+  const { data: requests } = await admin
     .from("vacation_requests")
     .select(`
       id, start_date, end_date, status,
