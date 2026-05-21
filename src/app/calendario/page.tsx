@@ -7,7 +7,6 @@ interface RequestWithEmployee {
   id: string;
   start_date: string;
   end_date: string;
-  status: "pendiente" | "aprobada";
   employee:
     | { id: number; nombre: string; apellido_paterno: string | null }
     | { id: number; nombre: string; apellido_paterno: string | null }[]
@@ -19,7 +18,6 @@ interface Bar {
   employeeId: number;
   fullName: string;
   initials: string;
-  status: "pendiente" | "aprobada";
   startCol: number;     // 1..7 (lunes=1)
   endCol: number;       // 1..7 inclusive
   lane: number;         // 0-indexed
@@ -58,10 +56,10 @@ export default async function CalendarioPage({
   const { data: requests } = await admin
     .from("vacation_requests")
     .select(`
-      id, start_date, end_date, status,
+      id, start_date, end_date,
       employee:employees!vacation_requests_employee_id_fkey ( id, nombre, apellido_paterno )
     `)
-    .in("status", ["pendiente", "aprobada"])
+    .eq("status", "aprobada")
     .lt("start_date", isoDate(monthEnd))
     .gte("end_date", isoDate(monthStart));
 
@@ -123,16 +121,14 @@ export default async function CalendarioPage({
                 </div>
               ))}
 
-              {/* Barras de solicitudes (encima de los fondos) */}
+              {/* Barras de vacaciones aprobadas (encima de los fondos) */}
               {w.bars.map((b, bi) => (
                 <div
                   key={`bar-${b.requestId}-${b.lane}-${bi}`}
-                  title={`${b.fullName} · ${b.status === "aprobada" ? "aprobada" : "pendiente"}`}
-                  className={`relative z-10 mx-0.5 my-px h-[20px] flex items-center px-1.5 text-[11px] font-medium truncate ${
-                    b.status === "aprobada"
-                      ? "bg-brand-navy text-white"
-                      : "border border-brand-red bg-brand-red-tint text-brand-red"
-                  } ${b.isStart ? "rounded-l-sm" : ""} ${b.isEnd ? "rounded-r-sm" : ""}`}
+                  title={b.fullName}
+                  className={`relative z-10 mx-0.5 my-px h-[20px] flex items-center px-1.5 text-[11px] font-medium truncate bg-brand-navy text-white ${
+                    b.isStart ? "rounded-l-sm" : ""
+                  } ${b.isEnd ? "rounded-r-sm" : ""}`}
                   style={{
                     gridColumn: `${b.startCol} / ${b.endCol + 1}`,
                     gridRow: b.lane + 2, // +1 por header de día, +1 por 1-indexed
@@ -147,13 +143,7 @@ export default async function CalendarioPage({
       </div>
 
       <div className="flex items-center gap-4 text-xs text-brand-gray">
-        <span className="inline-flex items-center gap-1">
-          <span className="inline-block h-3 w-5 bg-brand-navy"></span> aprobada
-        </span>
-        <span className="inline-flex items-center gap-1">
-          <span className="inline-block h-3 w-5 border border-brand-red bg-brand-red-tint"></span> pendiente
-        </span>
-        <span className="ml-auto">Pasa el cursor sobre una barra para ver el nombre completo y estatus.</span>
+        <span>Solo se muestran vacaciones aprobadas. Pasa el cursor sobre una barra para ver el nombre completo.</span>
       </div>
     </main>
   );
@@ -253,7 +243,6 @@ function buildWeeks(
         employeeId: emp.id,
         fullName,
         initials,
-        status: r.status,
         startCol: dowMondayBased(segStart),
         endCol: dowMondayBased(segEnd),
         lane: 0, // se asigna después
