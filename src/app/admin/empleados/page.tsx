@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { calcularSaldo, type SaldoVacaciones } from "@/lib/saldo";
+import { ensureCarryoverAdjustments, isWithinPostAnniversaryWindow } from "@/lib/carryover";
 
 interface EmpleadoRow {
   id: number;
@@ -46,13 +47,27 @@ export default async function AdminEmpleadosPage({
   const groupBy: GroupBy = por === "sucursal" ? "sucursal" : "area";
 
   const supabase = await createSupabaseServerClient();
+  const asOf = new Date();
 
-  const [{ data: employees }, { data: branches }, { data: areas }, { data: requests }, { data: adjustments }] = await Promise.all([
-    supabase
-      .from("employees")
-      .select("id, nombre, apellido_paterno, branch_id, hire_date, is_admin, area_id")
-      .is("termination_date", null)
-      .order("apellido_paterno"),
+  const { data: employees } = await supabase
+    .from("employees")
+    .select("id, nombre, apellido_paterno, branch_id, hire_date, is_admin, area_id")
+    .is("termination_date", null)
+    .order("apellido_paterno");
+
+  // Solo procesamos arrastre para empleados cuyo aniversario más reciente cae
+  // dentro de la ventana post-aniversario. Mantiene el costo de la lista al
+  // mínimo (cero escrituras 11 meses del año por empleado) y aún así garantiza
+  // que el arrastre se registre — si nadie carga la página el día exacto, los
+  // siguientes ~30 días lo cubren.
+  const dueForCarryover = ((employees ?? []) as EmpleadoRow[])
+    .filter((e) => isWithinPostAnniversaryWindow(new Date(e.hire_date), asOf))
+    .map((e) => ({ id: e.id, hire_date: e.hire_date }));
+  if (dueForCarryover.length > 0) {
+    await ensureCarryoverAdjustments(dueForCarryover, asOf);
+  }
+
+  const [{ data: branches }, { data: areas }, { data: requests }, { data: adjustments }] = await Promise.all([
     supabase.from("branches").select("id, nombre").order("nombre"),
     supabase.from("areas").select("id, nombre, display_order").order("display_order"),
     supabase.from("vacation_requests").select("employee_id, start_date, end_date, business_days, status"),
@@ -67,7 +82,6 @@ export default async function AdminEmpleadosPage({
   const reqByEmployee = mapBy<RequestRow, number>((requests ?? []) as RequestRow[], (r) => r.employee_id);
   const adjByEmployee = mapBy<AdjustmentRow, number>((adjustments ?? []) as AdjustmentRow[], (a) => a.employee_id);
 
-  const asOf = new Date();
   const computed: ComputedRow[] = ((employees ?? []) as EmpleadoRow[]).map((e) => {
     const saldo = calcularSaldo(new Date(e.hire_date), asOf, reqByEmployee.get(e.id) ?? [], adjByEmployee.get(e.id) ?? []);
     return {

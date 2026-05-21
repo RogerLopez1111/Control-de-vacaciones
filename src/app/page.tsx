@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { calcularSaldo } from "@/lib/saldo";
+import { ensureCarryoverAdjustments, isWithinPostAnniversaryWindow } from "@/lib/carryover";
 import { formatDateMX } from "@/lib/format";
 
 export default async function DashboardPage() {
@@ -26,7 +27,12 @@ export default async function DashboardPage() {
     );
   }
 
-  const [{ data: solicitudes }, { data: ajustes }, { count: reportesCount }] = await Promise.all([
+  const asOf = new Date();
+  if (isWithinPostAnniversaryWindow(new Date(empleado.hire_date), asOf)) {
+    await ensureCarryoverAdjustments([{ id: empleado.id, hire_date: empleado.hire_date }], asOf);
+  }
+
+  const [{ data: solicitudes }, { data: ajustes }, { count: reportesCount }, { count: pendingApprovalsCount }] = await Promise.all([
     supabase
       .from("vacation_requests")
       .select("id, start_date, end_date, business_days, status, requested_at, decision_comment")
@@ -34,17 +40,23 @@ export default async function DashboardPage() {
       .order("requested_at", { ascending: false }),
     supabase
       .from("vacation_adjustments")
-      .select("id, period_start, delta_days, reason, adjusted_at")
+      .select("id, period_start, delta_days, reason, adjusted_at, kind")
       .eq("employee_id", empleado.id)
       .order("adjusted_at", { ascending: false }),
     supabase
       .from("employees")
       .select("id", { count: "exact", head: true })
       .eq("manager_employee_id", empleado.id),
+    // RLS filtra a lo que el usuario puede ver. Excluimos las propias porque
+    // uno no aprueba sus propias solicitudes.
+    supabase
+      .from("vacation_requests")
+      .select("id", { count: "exact", head: true })
+      .eq("status", "pendiente")
+      .neq("employee_id", empleado.id),
   ]);
 
   const hireDate = new Date(empleado.hire_date);
-  const asOf = new Date();
   const saldo = calcularSaldo(hireDate, asOf, solicitudes ?? [], ajustes ?? []);
   const todayIso = asOf.toISOString().slice(0, 10);
   const periodStartIso = saldo.periodStart.toISOString().slice(0, 10);
@@ -74,7 +86,20 @@ export default async function DashboardPage() {
           <Link href="/solicitar" className="rounded-md bg-brand-red px-3 py-2 text-white hover:opacity-90">Solicitar vacaciones</Link>
           <Link href="/calendario" className="rounded-md border border-brand-navy text-brand-navy px-3 py-2 hover:bg-brand-navy-tint">Calendario</Link>
           {(reportesCount && reportesCount > 0) || empleado.is_admin ? (
-            <Link href="/aprobaciones" className="rounded-md border border-brand-navy text-brand-navy px-3 py-2 hover:bg-brand-navy-tint">Aprobaciones</Link>
+            <Link
+              href="/aprobaciones"
+              className="relative rounded-md border border-brand-navy text-brand-navy px-3 py-2 hover:bg-brand-navy-tint"
+            >
+              Aprobaciones
+              {pendingApprovalsCount && pendingApprovalsCount > 0 ? (
+                <span
+                  aria-label={`${pendingApprovalsCount} solicitudes pendientes`}
+                  className="absolute -top-2 -right-2 min-w-[1.25rem] h-5 px-1 inline-flex items-center justify-center rounded-full bg-brand-red text-white text-xs font-semibold tabular-nums"
+                >
+                  {pendingApprovalsCount > 99 ? "99+" : pendingApprovalsCount}
+                </span>
+              ) : null}
+            </Link>
           ) : null}
           {empleado.is_admin && (
             <Link href="/admin/empleados" className="rounded-md border border-brand-navy text-brand-navy px-3 py-2 hover:bg-brand-navy-tint">Empleados</Link>
@@ -92,14 +117,21 @@ export default async function DashboardPage() {
 
       {ajustesPeriodo.length > 0 && (
         <section>
-          <h2 className="text-lg font-medium text-brand-navy mb-2">Ajustes de RRHH (este periodo)</h2>
+          <h2 className="text-lg font-medium text-brand-navy mb-2">Ajustes del periodo</h2>
           <ul className="border border-neutral-200 bg-white divide-y divide-neutral-100">
             {ajustesPeriodo.map((a) => (
               <li key={a.id} className="px-3 py-2 text-sm flex items-baseline gap-3">
                 <span className={`tabular-nums font-medium ${a.delta_days > 0 ? "text-green-700" : "text-brand-red"}`}>
                   {a.delta_days > 0 ? `+${a.delta_days}` : a.delta_days}
                 </span>
-                <span className="flex-1">{a.reason}</span>
+                <span className="flex-1">
+                  {a.reason}
+                  {a.kind === "carryover" && (
+                    <span className="ml-2 align-middle rounded-full bg-neutral-200 text-brand-gray text-xs px-2 py-0.5">
+                      automático
+                    </span>
+                  )}
+                </span>
                 <span className="text-xs text-brand-gray">{fmtISO(a.adjusted_at)}</span>
               </li>
             ))}

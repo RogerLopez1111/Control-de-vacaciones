@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { calcularSaldo } from "@/lib/saldo";
+import { ensureCarryoverAdjustments, isWithinPostAnniversaryWindow } from "@/lib/carryover";
 import { formatDateMX } from "@/lib/format";
 import { AjusteForm } from "./ajuste-form";
 import { RoleToggle } from "./role-toggle";
@@ -19,27 +20,32 @@ export default async function EmpleadoDetallePage({ params }: { params: Promise<
     ? await supabase.from("employees").select("id").eq("auth_user_id", user.id).single()
     : { data: null };
 
-  const [{ data: e }, { data: requests }, { data: adjustments }, { data: branches }, { data: areas }] = await Promise.all([
-    supabase.from("employees")
-      .select("id, codigo_alterno, nombre, apellido_paterno, apellido_materno, email, notification_email, branch_id, hire_date, is_admin, password_changed_at, area_id, manager_employee_id")
-      .eq("id", id)
-      .single(),
+  const { data: e } = await supabase.from("employees")
+    .select("id, codigo_alterno, nombre, apellido_paterno, apellido_materno, email, notification_email, branch_id, hire_date, is_admin, password_changed_at, area_id, manager_employee_id")
+    .eq("id", id)
+    .single();
+
+  if (!e) notFound();
+
+  const asOf = new Date();
+  if (isWithinPostAnniversaryWindow(new Date(e.hire_date), asOf)) {
+    await ensureCarryoverAdjustments([{ id: e.id, hire_date: e.hire_date }], asOf);
+  }
+
+  const [{ data: requests }, { data: adjustments }, { data: branches }, { data: areas }] = await Promise.all([
     supabase.from("vacation_requests")
       .select("id, start_date, end_date, business_days, status, requested_at, decision_comment")
       .eq("employee_id", id)
       .order("requested_at", { ascending: false }),
     supabase.from("vacation_adjustments")
-      .select("id, period_start, delta_days, reason, adjusted_at, adjusted_by_employee_id")
+      .select("id, period_start, delta_days, reason, adjusted_at, adjusted_by_employee_id, kind")
       .eq("employee_id", id)
       .order("adjusted_at", { ascending: false }),
     supabase.from("branches").select("id, nombre"),
     supabase.from("areas").select("id, nombre").order("display_order"),
   ]);
 
-  if (!e) notFound();
-
   const branch = (branches ?? []).find((b) => b.id === e.branch_id)?.nombre ?? "—";
-  const asOf = new Date();
   const saldo = calcularSaldo(new Date(e.hire_date), asOf, requests ?? [], adjustments ?? []);
   const periodStartIso = saldo.periodStart.toISOString().slice(0, 10);
 
@@ -116,7 +122,14 @@ export default async function EmpleadoDetallePage({ params }: { params: Promise<
                     <td className={`px-3 py-2 text-right tabular-nums font-medium ${a.delta_days > 0 ? "text-green-700" : "text-brand-red"}`}>
                       {a.delta_days > 0 ? `+${a.delta_days}` : a.delta_days}
                     </td>
-                    <td className="px-3 py-2">{a.reason}</td>
+                    <td className="px-3 py-2">
+                      {a.reason}
+                      {a.kind === "carryover" && (
+                        <span className="ml-2 align-middle rounded-full bg-neutral-200 text-brand-gray text-xs px-2 py-0.5">
+                          automático
+                        </span>
+                      )}
+                    </td>
                   </tr>
                 ))}
               </tbody>
