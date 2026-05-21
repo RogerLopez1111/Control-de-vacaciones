@@ -9,6 +9,7 @@
  * Esto permite que la app funcione en local sin SMTP configurado.
  */
 import nodemailer, { type Transporter } from "nodemailer";
+import { formatDateMX } from "@/lib/format";
 
 let cachedTransport: Transporter | null = null;
 
@@ -164,11 +165,7 @@ export async function sendVacationDecisionNotification(p: VacationDecisionEmailP
   }
 }
 
-function fmt(iso: string): string {
-  return new Date(iso + "T12:00:00").toLocaleDateString("es-MX", {
-    day: "2-digit", month: "short", year: "numeric",
-  });
-}
+const fmt = formatDateMX;
 
 function escapeHtml(s: string): string {
   return s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]!));

@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { calcularSaldo } from "@/lib/saldo";
+import { formatDateMX } from "@/lib/format";
 
 export default async function DashboardPage() {
   const supabase = await createSupabaseServerClient();
@@ -178,6 +179,4 @@ function StatusBadge({ status }: { status: string }) {
 function fmt(d: Date): string {
   return d.toLocaleDateString("es-MX", { day: "2-digit", month: "short", year: "numeric" });
 }
-function fmtISO(iso: string): string {
-  return fmt(new Date(iso));
-}
+const fmtISO = formatDateMX;

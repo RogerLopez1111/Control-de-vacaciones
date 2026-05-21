@@ -2,6 +2,7 @@ import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { yearsOfServiceAt } from "@/lib/lft-entitlement";
+import { formatDateMXLong } from "@/lib/format";
 import { PrintButton } from "./print-button";
 import { AutoPrintTrigger } from "./auto-print-trigger";
 
@@ -186,10 +187,7 @@ function Row({ label, value }: { label: string; value: string }) {
   );
 }
 
-function fmtIso(iso: string): string {
-  if (!iso) return "—";
-  return new Date(iso.length === 10 ? iso + "T12:00:00" : iso).toLocaleDateString("es-MX", { day: "2-digit", month: "long", year: "numeric" });
-}
+const fmtIso = formatDateMXLong;
 function fmtDate(d: Date): string {
   return d.toLocaleDateString("es-MX", { day: "2-digit", month: "long", year: "numeric" });
 }

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { formatDateMX } from "@/lib/format";
 
 interface DecidedRequest {
   id: string;
@@ -39,11 +40,11 @@ export function DecididaRow({ request }: { request: DecidedRequest }) {
         </span>
       </div>
       <p className="text-sm text-neutral-700 mt-1">
-        {fmtISO(request.start_date)} → {fmtISO(request.end_date)} ·{" "}
+        {formatDateMX(request.start_date)} → {formatDateMX(request.end_date)} ·{" "}
         <strong>{request.business_days}</strong> días hábiles
       </p>
       <p className="text-xs text-brand-gray mt-1">
-        {approved ? "Aprobada" : "Rechazada"} el {request.decided_at ? fmtISO(request.decided_at) : "—"} por {deciderName}
+        {approved ? "Aprobada" : "Rechazada"} el {formatDateMX(request.decided_at)} por {deciderName}
       </p>
       {request.employee_comment && (
         <p className="mt-2 text-sm text-neutral-600 italic">
@@ -71,8 +72,3 @@ export function DecididaRow({ request }: { request: DecidedRequest }) {
   );
 }
 
-function fmtISO(iso: string): string {
-  return new Date(iso.length === 10 ? iso + "T12:00:00" : iso).toLocaleDateString("es-MX", {
-    day: "2-digit", month: "short", year: "numeric",
-  });
-}

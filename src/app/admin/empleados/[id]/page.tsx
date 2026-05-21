@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { calcularSaldo } from "@/lib/saldo";
+import { formatDateMX } from "@/lib/format";
 import { AjusteForm } from "./ajuste-form";
 import { RoleToggle } from "./role-toggle";
 import { AreaPicker } from "./area-picker";
@@ -179,6 +180,4 @@ function Stat({ label, value, highlight, signed }: { label: string; value: numbe
 function fmt(d: Date): string {
   return d.toLocaleDateString("es-MX", { day: "2-digit", month: "short", year: "numeric" });
 }
-function fmtISO(iso: string): string {
-  return fmt(new Date(iso));
-}
+const fmtISO = formatDateMX;

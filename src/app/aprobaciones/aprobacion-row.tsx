@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { decideVacationRequest } from "./actions";
+import { formatDateMX } from "@/lib/format";
 
 interface RequestRow {
   id: string;
@@ -68,12 +69,12 @@ export function AprobacionRow({
             </span>
           )}
           <span className="text-xs text-neutral-500">
-            solicitada {new Date(request.requested_at).toLocaleDateString("es-MX")}
+            solicitada {formatDateMX(request.requested_at)}
           </span>
         </div>
       </div>
       <p className="text-sm text-neutral-700 mt-1">
-        {fmtISO(request.start_date)} → {fmtISO(request.end_date)} ·{" "}
+        {formatDateMX(request.start_date)} → {formatDateMX(request.end_date)} ·{" "}
         <strong>{request.business_days}</strong> días hábiles
       </p>
       {request.employee_comment && (
@@ -116,6 +117,3 @@ export function AprobacionRow({
   );
 }
 
-function fmtISO(iso: string): string {
-  return new Date(iso).toLocaleDateString("es-MX", { day: "2-digit", month: "short", year: "numeric" });
-}
