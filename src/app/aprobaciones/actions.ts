@@ -2,6 +2,61 @@
 
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+
+export interface SaveSupervisorCommentInput {
+  requestId: string;
+  comment: string;
+}
+
+export async function saveSupervisorComment(
+  input: SaveSupervisorCommentInput,
+): Promise<{ ok: boolean; error?: string }> {
+  const supabase = await createSupabaseServerClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { ok: false, error: "No autenticado." };
+
+  const admin = createSupabaseAdminClient();
+
+  // Resolver el employee del caller.
+  const { data: caller } = await admin
+    .from("employees")
+    .select("id")
+    .eq("auth_user_id", user.id)
+    .single();
+  if (!caller) return { ok: false, error: "No se encontró tu registro de empleado." };
+
+  // Verificar que el caller es watcher del área del solicitante.
+  const { data: req } = await admin
+    .from("vacation_requests")
+    .select("status, employee:employees!vacation_requests_employee_id_fkey ( area_id )")
+    .eq("id", input.requestId)
+    .single();
+  if (!req) return { ok: false, error: "Solicitud no encontrada." };
+  if (req.status !== "pendiente") return { ok: false, error: "Solo se puede comentar solicitudes pendientes." };
+
+  const emp = Array.isArray(req.employee) ? req.employee[0] : req.employee;
+  if (!emp?.area_id) return { ok: false, error: "El empleado no tiene área asignada." };
+
+  const { data: area } = await admin
+    .from("areas")
+    .select("watcher_employee_id")
+    .eq("id", emp.area_id)
+    .single();
+  if (!area || area.watcher_employee_id !== caller.id) {
+    return { ok: false, error: "No tienes permiso para comentar esta solicitud." };
+  }
+
+  const { error } = await admin
+    .from("vacation_requests")
+    .update({
+      supervisor_comment: input.comment.trim() || null,
+      supervisor_comment_by_employee_id: input.comment.trim() ? caller.id : null,
+    })
+    .eq("id", input.requestId);
+  if (error) return { ok: false, error: error.message };
+
+  return { ok: true };
+}
 import { sendVacationDecisionNotification } from "@/lib/email/notifier";
 
 export interface DecideInput {

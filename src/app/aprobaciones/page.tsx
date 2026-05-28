@@ -25,11 +25,20 @@ export default async function AprobacionesPage({
     .single();
   if (!me) redirect("/");
 
+  // Áreas de las que soy watcher — para mostrar el campo de comentario.
+  const { data: watchedAreas } = await supabase
+    .from("areas")
+    .select("id")
+    .eq("watcher_employee_id", me.id);
+  const watchedAreaIds = new Set((watchedAreas ?? []).map((a) => a.id));
+
   const selectCommon = `
     id, start_date, end_date, business_days, employee_comment, requested_at, status,
     decided_at, decision_comment,
-    employee:employees!vacation_requests_employee_id_fkey ( id, nombre, apellido_paterno, manager_employee_id ),
-    decided_by:employees!vacation_requests_decided_by_employee_id_fkey ( id, nombre, apellido_paterno )
+    supervisor_comment, supervisor_comment_by_employee_id,
+    employee:employees!vacation_requests_employee_id_fkey ( id, nombre, apellido_paterno, manager_employee_id, area_id ),
+    decided_by:employees!vacation_requests_decided_by_employee_id_fkey ( id, nombre, apellido_paterno ),
+    supervisor_comment_by:employees!vacation_requests_supervisor_comment_by_employee_id_fkey ( nombre, apellido_paterno )
   `;
 
   let pendientes: PendingShape[] = [];
@@ -71,6 +80,7 @@ export default async function AprobacionesPage({
                 key={r.id}
                 request={r}
                 canApprove={canCallerApprove(r, me)}
+                isWatcher={isCallerWatcher(r, watchedAreaIds)}
               />
             ))}
           </div>
@@ -113,11 +123,17 @@ interface PendingShape {
   status: "pendiente";
   decided_at: null;
   decision_comment: null;
+  supervisor_comment: string | null;
+  supervisor_comment_by_employee_id: number | null;
   employee:
-    | { id: number; nombre: string; apellido_paterno: string | null; manager_employee_id: number | null }
-    | { id: number; nombre: string; apellido_paterno: string | null; manager_employee_id: number | null }[]
+    | { id: number; nombre: string; apellido_paterno: string | null; manager_employee_id: number | null; area_id: string | null }
+    | { id: number; nombre: string; apellido_paterno: string | null; manager_employee_id: number | null; area_id: string | null }[]
     | null;
   decided_by: null;
+  supervisor_comment_by:
+    | { nombre: string; apellido_paterno: string | null }
+    | { nombre: string; apellido_paterno: string | null }[]
+    | null;
 }
 
 interface DecidedShape {
@@ -144,4 +160,9 @@ function canCallerApprove(r: PendingShape, me: { id: number; is_admin: boolean |
   if (me.is_admin) return true;
   const emp = Array.isArray(r.employee) ? r.employee[0] : r.employee;
   return !!emp && emp.manager_employee_id === me.id;
+}
+
+function isCallerWatcher(r: PendingShape, watchedAreaIds: Set<string>): boolean {
+  const emp = Array.isArray(r.employee) ? r.employee[0] : r.employee;
+  return !!emp?.area_id && watchedAreaIds.has(emp.area_id);
 }
