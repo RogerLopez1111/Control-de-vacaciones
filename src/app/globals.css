@@ -47,4 +47,9 @@
     box-shadow: none !important;
     filter: none !important;
   }
+  /* Sharp corners everywhere — esquinas vivas en toda la UI.
+     Solo se respeta rounded-full (badges circulares, avatares). */
+  *:not([class~="rounded-full"]) {
+    border-radius: 0 !important;
+  }
 }
