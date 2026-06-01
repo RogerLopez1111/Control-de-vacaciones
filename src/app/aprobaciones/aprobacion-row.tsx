@@ -95,10 +95,20 @@ export function AprobacionRow({
         </div>
       </div>
 
-      <p className="text-sm text-neutral-700">
-        {formatDateMX(request.start_date)} → {formatDateMX(request.end_date)} ·{" "}
-        <strong>{request.business_days}</strong> días hábiles
-      </p>
+      <div className="flex items-center gap-3 flex-wrap">
+        <p className="text-sm text-neutral-700">
+          {formatDateMX(request.start_date)} → {formatDateMX(request.end_date)} ·{" "}
+          <strong>{request.business_days}</strong> días hábiles
+        </p>
+        <a
+          href={`/calendario?month=${request.start_date.slice(0, 7)}&preview=${request.id}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-xs border border-brand-navy text-brand-navy px-2 py-0.5 hover:bg-brand-navy hover:text-white shrink-0"
+        >
+          Ver en calendario
+        </a>
+      </div>
 
       {request.employee_comment && (
         <p className="text-sm text-neutral-600 italic">&ldquo;{request.employee_comment}&rdquo;</p>

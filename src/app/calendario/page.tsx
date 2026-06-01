@@ -21,8 +21,9 @@ interface Bar {
   startCol: number;     // 1..7 (lunes=1)
   endCol: number;       // 1..7 inclusive
   lane: number;         // 0-indexed
-  isStart: boolean;     // true si la solicitud arranca en esta semana
-  isEnd: boolean;       // true si termina en esta semana
+  isStart: boolean;
+  isEnd: boolean;
+  isPreview: boolean;   // solicitud pendiente en modo vista previa
 }
 
 interface Week {
@@ -34,25 +35,22 @@ interface Week {
 export default async function CalendarioPage({
   searchParams,
 }: {
-  searchParams: Promise<{ month?: string }>;
+  searchParams: Promise<{ month?: string; preview?: string }>;
 }) {
   const supabase = await createSupabaseServerClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  const { month: monthParam } = await searchParams;
+  const { month: monthParam, preview: previewId } = await searchParams;
   const today = new Date();
   const { year, month } = parseMonth(monthParam, today);
   const monthStart = new Date(year, month, 1);
   const monthEnd = new Date(year, month + 1, 1);
   const todayIso = isoDate(today);
 
-  // El calendario muestra TODAS las vacaciones a TODOS los empleados
-  // autenticados — visibilidad global a propósito. Usamos el service role
-  // server-side (bypassa RLS) y solo renderizamos campos no sensibles
-  // (nombre, fechas, estatus). Los comentarios y otros datos siguen
-  // protegidos por RLS para queries directas del browser.
   const admin = createSupabaseAdminClient();
+
+  // Vacaciones aprobadas del mes
   const { data: requests } = await admin
     .from("vacation_requests")
     .select(`
@@ -63,10 +61,39 @@ export default async function CalendarioPage({
     .lt("start_date", isoDate(monthEnd))
     .gte("end_date", isoDate(monthStart));
 
-  const weeks = buildWeeks(year, month, todayIso, (requests ?? []) as RequestWithEmployee[]);
+  // Solicitud pendiente en vista previa (si viene ?preview=)
+  let previewRequest: RequestWithEmployee | null = null;
+  let previewEmpName = "";
+  if (previewId) {
+    const { data } = await admin
+      .from("vacation_requests")
+      .select(`
+        id, start_date, end_date,
+        employee:employees!vacation_requests_employee_id_fkey ( id, nombre, apellido_paterno )
+      `)
+      .eq("id", previewId)
+      .single();
+    if (data) {
+      previewRequest = data as RequestWithEmployee;
+      const emp = Array.isArray(previewRequest.employee)
+        ? previewRequest.employee[0]
+        : previewRequest.employee;
+      if (emp) previewEmpName = `${emp.nombre} ${emp.apellido_paterno ?? ""}`.trim();
+    }
+  }
+
+  const weeks = buildWeeks(
+    year, month, todayIso,
+    (requests ?? []) as RequestWithEmployee[],
+    previewRequest ? [previewRequest] : [],
+  );
   const monthLabel = monthStart.toLocaleDateString("es-MX", { month: "long", year: "numeric" });
+
+  // Los enlaces de navegación preservan ?preview= para que la barra siga visible al cambiar mes
+  const ps = previewId ? `&preview=${previewId}` : "";
   const prev = shiftMonth(year, month, -1);
   const next = shiftMonth(year, month, +1);
+  const currentMonthStr = `${year}-${String(month + 1).padStart(2, "0")}`;
 
   return (
     <main className="mx-auto max-w-6xl">
@@ -75,7 +102,7 @@ export default async function CalendarioPage({
         <Link href="/" className="text-sm text-white/60 hover:text-white">← Dashboard</Link>
         <div className="flex items-center gap-0">
           <Link
-            href={`/calendario?month=${prev}`}
+            href={`/calendario?month=${prev}${ps}`}
             className="px-4 py-1.5 text-white border border-white/20 hover:bg-white/10 text-sm font-medium"
           >
             ‹
@@ -84,14 +111,37 @@ export default async function CalendarioPage({
             {monthLabel}
           </h1>
           <Link
-            href={`/calendario?month=${next}`}
+            href={`/calendario?month=${next}${ps}`}
             className="px-4 py-1.5 text-white border border-white/20 hover:bg-white/10 text-sm font-medium"
           >
             ›
           </Link>
         </div>
-        <Link href="/calendario" className="text-sm text-white/60 hover:text-white">Hoy</Link>
+        <Link
+          href={previewId ? `/calendario?preview=${previewId}` : "/calendario"}
+          className="text-sm text-white/60 hover:text-white"
+        >
+          Hoy
+        </Link>
       </div>
+
+      {/* Banner de vista previa */}
+      {previewRequest && (
+        <div className="bg-amber-50 border-b border-amber-300 px-4 py-2 flex items-center justify-between">
+          <p className="text-xs text-amber-900">
+            <strong>Vista previa (pendiente):</strong>{" "}
+            {previewEmpName} ·{" "}
+            {fmtDate(previewRequest.start_date)} – {fmtDate(previewRequest.end_date)}
+            {" "}· Las barras rayadas indican los días solicitados.
+          </p>
+          <Link
+            href={`/calendario?month=${currentMonthStr}`}
+            className="text-xs text-amber-700 hover:text-amber-900 font-medium ml-4 shrink-0"
+          >
+            × Cerrar
+          </Link>
+        </div>
+      )}
 
       <div className="border border-neutral-200 border-t-0 bg-white">
         {/* Encabezado días de la semana */}
@@ -141,17 +191,26 @@ export default async function CalendarioPage({
                 return (
                   <div
                     key={`bar-${b.requestId}-${b.lane}-${bi}`}
-                    title={b.fullName}
+                    title={b.isPreview ? `${b.fullName} (pendiente)` : b.fullName}
                     className="relative z-10 mx-px my-0.5 h-[22px] flex items-center px-2 text-[11px] font-medium truncate text-white"
                     style={{
                       gridColumn: `${b.startCol} / ${b.endCol + 1}`,
                       gridRow: b.lane + 2,
                       backgroundColor: color,
-                      borderLeft: b.isStart ? `3px solid ${dimColor(color)}` : "none",
-                      opacity: 0.92,
+                      backgroundImage: b.isPreview
+                        ? `repeating-linear-gradient(-45deg, transparent 0px, transparent 4px, rgba(255,255,255,0.28) 4px, rgba(255,255,255,0.28) 8px)`
+                        : undefined,
+                      borderLeft: b.isStart
+                        ? `3px ${b.isPreview ? "dashed" : "solid"} ${dimColor(color)}`
+                        : "none",
+                      outline: b.isPreview ? `1.5px dashed ${dimColor(color)}` : undefined,
+                      outlineOffset: b.isPreview ? "-1px" : undefined,
+                      opacity: b.isPreview ? 0.82 : 0.92,
                     }}
                   >
-                    <span className="truncate">{b.isStart ? b.fullName : ""}</span>
+                    <span className="truncate">
+                      {b.isStart ? (b.isPreview ? `${b.fullName} (pendiente)` : b.fullName) : ""}
+                    </span>
                   </div>
                 );
               })}
@@ -161,7 +220,9 @@ export default async function CalendarioPage({
       </div>
 
       <p className="text-xs text-brand-gray px-4 pt-3 pb-4">
-        Solo vacaciones aprobadas. Pasa el cursor sobre una barra para ver el nombre completo.
+        {previewRequest
+          ? "Barras sólidas = aprobadas · Barras rayadas = pendiente de autorización."
+          : "Solo vacaciones aprobadas. Pasa el cursor sobre una barra para ver el nombre completo."}
       </p>
     </main>
   );
@@ -190,6 +251,11 @@ function dimColor(hex: string): string {
   const g = Math.max(0, ((n >> 8) & 0xff) - 40);
   const b = Math.max(0, (n & 0xff) - 40);
   return `#${r.toString(16).padStart(2, "0")}${g.toString(16).padStart(2, "0")}${b.toString(16).padStart(2, "0")}`;
+}
+
+function fmtDate(iso: string): string {
+  const [y, m, d] = iso.split("-").map(Number);
+  return new Date(y, m - 1, d).toLocaleDateString("es-MX", { day: "numeric", month: "short" });
 }
 
 function parseMonth(param: string | undefined, today: Date): { year: number; month: number } {
@@ -242,7 +308,8 @@ function buildWeeks(
   year: number,
   month: number,
   todayIso: string,
-  requests: RequestWithEmployee[]
+  requests: RequestWithEmployee[],
+  previewRequests: RequestWithEmployee[] = [],
 ): Week[] {
   const gridStart = mondayOf(new Date(year, month, 1));
   const weeks: Week[] = [];
@@ -259,35 +326,40 @@ function buildWeeks(
     weeks.push({ days, bars: [], laneCount: 0 });
   }
 
-  // Segmenta cada solicitud por semana visible
-  for (const r of requests) {
-    const emp = Array.isArray(r.employee) ? r.employee[0] : r.employee;
-    if (!emp) continue;
-    const fullName = `${emp.nombre} ${emp.apellido_paterno ?? ""}`.trim();
-    const initials = getInitials(emp.nombre, emp.apellido_paterno);
-    const reqStart = parseIsoDateLocal(r.start_date);
-    const reqEnd = parseIsoDateLocal(r.end_date);
+  function pushBars(list: RequestWithEmployee[], isPreview: boolean) {
+    for (const r of list) {
+      const emp = Array.isArray(r.employee) ? r.employee[0] : r.employee;
+      if (!emp) continue;
+      const fullName = `${emp.nombre} ${emp.apellido_paterno ?? ""}`.trim();
+      const initials = getInitials(emp.nombre, emp.apellido_paterno);
+      const reqStart = parseIsoDateLocal(r.start_date);
+      const reqEnd = parseIsoDateLocal(r.end_date);
 
-    for (const week of weeks) {
-      const weekStart = week.days[0].date;
-      const weekEnd = week.days[6].date;
-      const segStart = reqStart > weekStart ? reqStart : weekStart;
-      const segEnd = reqEnd < weekEnd ? reqEnd : weekEnd;
-      if (segStart > segEnd) continue; // sin solapamiento
+      for (const week of weeks) {
+        const weekStart = week.days[0].date;
+        const weekEnd = week.days[6].date;
+        const segStart = reqStart > weekStart ? reqStart : weekStart;
+        const segEnd = reqEnd < weekEnd ? reqEnd : weekEnd;
+        if (segStart > segEnd) continue;
 
-      week.bars.push({
-        requestId: r.id,
-        employeeId: emp.id,
-        fullName,
-        initials,
-        startCol: dowMondayBased(segStart),
-        endCol: dowMondayBased(segEnd),
-        lane: 0, // se asigna después
-        isStart: isoDate(segStart) === r.start_date,
-        isEnd: isoDate(segEnd) === r.end_date,
-      });
+        week.bars.push({
+          requestId: r.id,
+          employeeId: emp.id,
+          fullName,
+          initials,
+          startCol: dowMondayBased(segStart),
+          endCol: dowMondayBased(segEnd),
+          lane: 0,
+          isStart: isoDate(segStart) === r.start_date,
+          isEnd: isoDate(segEnd) === r.end_date,
+          isPreview,
+        });
+      }
     }
   }
+
+  pushBars(requests, false);
+  pushBars(previewRequests, true);
 
   // Asignación de carriles (greedy interval scheduling por semana)
   for (const week of weeks) {
