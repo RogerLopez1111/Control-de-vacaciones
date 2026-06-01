@@ -4,7 +4,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { AprobacionRow } from "./aprobacion-row";
 import { DecididaRow } from "./decidida-row";
 
-type Tab = "pendientes" | "decididas";
+type Tab = "pendientes" | "decididas" | "mi-area";
 
 export default async function AprobacionesPage({
   searchParams,
@@ -12,7 +12,6 @@ export default async function AprobacionesPage({
   searchParams: Promise<{ tab?: string }>;
 }) {
   const { tab: tabParam } = await searchParams;
-  const tab: Tab = tabParam === "decididas" ? "decididas" : "pendientes";
 
   const supabase = await createSupabaseServerClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -25,12 +24,19 @@ export default async function AprobacionesPage({
     .single();
   if (!me) redirect("/");
 
-  // Áreas de las que soy watcher — para mostrar el campo de comentario.
+  // Áreas de las que soy watcher
   const { data: watchedAreas } = await supabase
     .from("areas")
     .select("id")
     .eq("watcher_employee_id", me.id);
   const watchedAreaIds = new Set((watchedAreas ?? []).map((a) => a.id));
+  const isWatcher = watchedAreaIds.size > 0;
+
+  // Elegir tab activo; "mi-area" solo si el usuario es watcher
+  const tab: Tab =
+    tabParam === "decididas" ? "decididas"
+    : tabParam === "mi-area" && isWatcher ? "mi-area"
+    : "pendientes";
 
   const selectCommon = `
     id, start_date, end_date, business_days, employee_comment, requested_at, status,
@@ -43,6 +49,7 @@ export default async function AprobacionesPage({
 
   let pendientes: PendingShape[] = [];
   let decididas: DecidedShape[] = [];
+  let miArea: PendingShape[] = [];
 
   if (tab === "pendientes") {
     const { data } = await supabase
@@ -51,13 +58,29 @@ export default async function AprobacionesPage({
       .eq("status", "pendiente")
       .order("requested_at", { ascending: true });
     pendientes = (data ?? []) as unknown as PendingShape[];
-  } else {
+  } else if (tab === "decididas") {
     const { data } = await supabase
       .from("vacation_requests")
       .select(selectCommon)
       .in("status", ["aprobada", "rechazada"])
       .order("decided_at", { ascending: false });
     decididas = (data ?? []) as unknown as DecidedShape[];
+  } else if (tab === "mi-area" && isWatcher) {
+    // Empleados que pertenecen a mis áreas observadas
+    const { data: watchedEmps } = await supabase
+      .from("employees")
+      .select("id")
+      .in("area_id", [...watchedAreaIds]);
+    const watchedEmpIds = (watchedEmps ?? []).map((e) => e.id);
+    if (watchedEmpIds.length > 0) {
+      const { data } = await supabase
+        .from("vacation_requests")
+        .select(selectCommon)
+        .eq("status", "pendiente")
+        .in("employee_id", watchedEmpIds)
+        .order("requested_at", { ascending: true });
+      miArea = (data ?? []) as unknown as PendingShape[];
+    }
   }
 
   return (
@@ -67,6 +90,9 @@ export default async function AprobacionesPage({
 
       <div className="flex gap-1 border-b border-neutral-200">
         <TabLink href="/aprobaciones?tab=pendientes" active={tab === "pendientes"}>Pendientes</TabLink>
+        {isWatcher && (
+          <TabLink href="/aprobaciones?tab=mi-area" active={tab === "mi-area"}>Mi área</TabLink>
+        )}
         <TabLink href="/aprobaciones?tab=decididas" active={tab === "decididas"}>Decididas</TabLink>
       </div>
 
@@ -81,6 +107,21 @@ export default async function AprobacionesPage({
                 request={r}
                 canApprove={canCallerApprove(r, me)}
                 isWatcher={isCallerWatcher(r, watchedAreaIds)}
+              />
+            ))}
+          </div>
+        )
+      ) : tab === "mi-area" ? (
+        miArea.length === 0 ? (
+          <p className="text-sm text-neutral-500">No hay solicitudes pendientes en tu área.</p>
+        ) : (
+          <div className="space-y-3">
+            {miArea.map((r) => (
+              <AprobacionRow
+                key={r.id}
+                request={r}
+                canApprove={false}
+                isWatcher={true}
               />
             ))}
           </div>
