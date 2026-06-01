@@ -69,7 +69,7 @@ export default async function CalendarioPage({
   const next = shiftMonth(year, month, +1);
 
   return (
-    <main className="mx-auto max-w-6xl p-6 space-y-0">
+    <main className="mx-auto max-w-6xl">
       {/* Barra de navegación */}
       <div className="bg-brand-navy flex items-center justify-between px-4 py-3">
         <Link href="/" className="text-sm text-white/60 hover:text-white">← Dashboard</Link>
@@ -160,7 +160,7 @@ export default async function CalendarioPage({
         })}
       </div>
 
-      <p className="text-xs text-brand-gray pt-3">
+      <p className="text-xs text-brand-gray px-4 pt-3 pb-4">
         Solo vacaciones aprobadas. Pasa el cursor sobre una barra para ver el nombre completo.
       </p>
     </main>
