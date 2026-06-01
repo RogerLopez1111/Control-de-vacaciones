@@ -69,24 +69,35 @@ export default async function CalendarioPage({
   const next = shiftMonth(year, month, +1);
 
   return (
-    <main className="mx-auto max-w-6xl p-6 space-y-4">
-      <div className="flex items-center justify-between">
-        <Link href="/" className="text-sm text-brand-gray hover:text-brand-navy">← Dashboard</Link>
-        <div className="flex items-center gap-3">
-          <Link href={`/calendario?month=${prev}`} className="rounded-md border border-neutral-300 px-3 py-1.5 text-sm hover:bg-neutral-50">←</Link>
-          <h1 className="text-xl font-semibold text-brand-navy capitalize tabular-nums w-56 text-center">
+    <main className="mx-auto max-w-6xl p-6 space-y-0">
+      {/* Barra de navegación */}
+      <div className="bg-brand-navy flex items-center justify-between px-4 py-3">
+        <Link href="/" className="text-sm text-white/60 hover:text-white">← Dashboard</Link>
+        <div className="flex items-center gap-0">
+          <Link
+            href={`/calendario?month=${prev}`}
+            className="px-4 py-1.5 text-white border border-white/20 hover:bg-white/10 text-sm font-medium"
+          >
+            ‹
+          </Link>
+          <h1 className="text-sm font-semibold text-white capitalize tabular-nums px-6 border-x border-white/20 py-1.5 w-52 text-center tracking-wide">
             {monthLabel}
           </h1>
-          <Link href={`/calendario?month=${next}`} className="rounded-md border border-neutral-300 px-3 py-1.5 text-sm hover:bg-neutral-50">→</Link>
+          <Link
+            href={`/calendario?month=${next}`}
+            className="px-4 py-1.5 text-white border border-white/20 hover:bg-white/10 text-sm font-medium"
+          >
+            ›
+          </Link>
         </div>
-        <Link href="/calendario" className="text-sm text-brand-gray hover:text-brand-navy">Hoy</Link>
+        <Link href="/calendario" className="text-sm text-white/60 hover:text-white">Hoy</Link>
       </div>
 
-      <div className="border border-neutral-200 bg-white">
-        {/* Encabezado de días de la semana */}
-        <div className="grid grid-cols-7 border-b border-neutral-200 bg-neutral-100">
+      <div className="border border-neutral-200 border-t-0 bg-white">
+        {/* Encabezado días de la semana */}
+        <div className="grid grid-cols-7 bg-brand-navy/90">
           {WEEKDAYS.map((d) => (
-            <div key={d} className="px-2 py-1.5 text-xs font-medium text-brand-navy text-center">
+            <div key={d} className="px-2 py-2 text-xs font-semibold text-white/80 text-center tracking-widest">
               {d}
             </div>
           ))}
@@ -94,57 +105,64 @@ export default async function CalendarioPage({
 
         {/* Semanas */}
         {weeks.map((w, wi) => {
-          const minRowHeight = 32 + Math.max(0, w.laneCount) * 22 + 6; // header del día + carriles + colchón
+          const minRowHeight = 36 + Math.max(0, w.laneCount) * 24 + 6;
           return (
             <div
               key={wi}
               className="grid grid-cols-7"
               style={{
-                gridTemplateRows: `auto${w.laneCount > 0 ? ` repeat(${w.laneCount}, 22px)` : ""}`,
+                gridTemplateRows: `auto${w.laneCount > 0 ? ` repeat(${w.laneCount}, 24px)` : ""}`,
                 minHeight: `${minRowHeight}px`,
               }}
             >
-              {/* Celdas-fondo de cada día (ocupan todas las filas de la semana) */}
               {w.days.map((d, di) => (
                 <div
                   key={`bg-${di}`}
-                  className={`border-r border-b border-neutral-100 ${
-                    d.inCurrentMonth ? "" : "bg-neutral-50"
-                  } ${d.isToday ? "ring-2 ring-inset ring-brand-red" : ""}`}
+                  className={`border-r border-b border-neutral-100 ${d.inCurrentMonth ? "bg-white" : "bg-neutral-50"}`}
                   style={{ gridColumn: di + 1, gridRow: `1 / ${w.laneCount + 2}` }}
                 >
-                  <div className={`px-1.5 py-1 text-xs tabular-nums ${
-                    d.isToday ? "font-bold text-brand-red" : d.inCurrentMonth ? "text-brand-navy" : "text-neutral-400"
-                  }`}>
-                    {d.date.getDate()}
+                  <div className="px-2 pt-1.5 pb-0.5 flex justify-end">
+                    <span className={`text-xs tabular-nums inline-flex items-center justify-center w-6 h-6 font-medium
+                      ${d.isToday
+                        ? "bg-brand-red text-white font-bold rounded-full"
+                        : d.inCurrentMonth
+                          ? "text-brand-navy"
+                          : "text-neutral-300"
+                      }`}
+                    >
+                      {d.date.getDate()}
+                    </span>
                   </div>
                 </div>
               ))}
 
-              {/* Barras de vacaciones aprobadas (encima de los fondos) */}
-              {w.bars.map((b, bi) => (
-                <div
-                  key={`bar-${b.requestId}-${b.lane}-${bi}`}
-                  title={b.fullName}
-                  className={`relative z-10 mx-0.5 my-px h-[20px] flex items-center px-1.5 text-[11px] font-medium truncate bg-brand-navy text-white ${
-                    b.isStart ? "rounded-l-sm" : ""
-                  } ${b.isEnd ? "rounded-r-sm" : ""}`}
-                  style={{
-                    gridColumn: `${b.startCol} / ${b.endCol + 1}`,
-                    gridRow: b.lane + 2, // +1 por header de día, +1 por 1-indexed
-                  }}
-                >
-                  <span className="truncate">{b.fullName}</span>
-                </div>
-              ))}
+              {w.bars.map((b, bi) => {
+                const color = BAR_COLORS[b.employeeId % BAR_COLORS.length];
+                return (
+                  <div
+                    key={`bar-${b.requestId}-${b.lane}-${bi}`}
+                    title={b.fullName}
+                    className="relative z-10 mx-px my-0.5 h-[22px] flex items-center px-2 text-[11px] font-medium truncate text-white"
+                    style={{
+                      gridColumn: `${b.startCol} / ${b.endCol + 1}`,
+                      gridRow: b.lane + 2,
+                      backgroundColor: color,
+                      borderLeft: b.isStart ? `3px solid ${dimColor(color)}` : "none",
+                      opacity: 0.92,
+                    }}
+                  >
+                    <span className="truncate">{b.isStart ? b.fullName : ""}</span>
+                  </div>
+                );
+              })}
             </div>
           );
         })}
       </div>
 
-      <div className="flex items-center gap-4 text-xs text-brand-gray">
-        <span>Solo se muestran vacaciones aprobadas. Pasa el cursor sobre una barra para ver el nombre completo.</span>
-      </div>
+      <p className="text-xs text-brand-gray pt-3">
+        Solo vacaciones aprobadas. Pasa el cursor sobre una barra para ver el nombre completo.
+      </p>
     </main>
   );
 }
@@ -154,6 +172,25 @@ export default async function CalendarioPage({
 // ============================================================================
 
 const WEEKDAYS = ["LUN", "MAR", "MIÉ", "JUE", "VIE", "SÁB", "DOM"];
+
+const BAR_COLORS = [
+  "#141456", // brand-navy
+  "#B70B0F", // brand-red
+  "#1a6b3c", // green
+  "#7c3d8c", // purple
+  "#c4700a", // amber
+  "#0e6e8c", // teal
+  "#7a3b1e", // brown
+  "#3d5a8a", // steel blue
+];
+
+function dimColor(hex: string): string {
+  const n = parseInt(hex.replace("#", ""), 16);
+  const r = Math.max(0, (n >> 16) - 40);
+  const g = Math.max(0, ((n >> 8) & 0xff) - 40);
+  const b = Math.max(0, (n & 0xff) - 40);
+  return `#${r.toString(16).padStart(2, "0")}${g.toString(16).padStart(2, "0")}${b.toString(16).padStart(2, "0")}`;
+}
 
 function parseMonth(param: string | undefined, today: Date): { year: number; month: number } {
   if (param && /^\d{4}-\d{2}$/.test(param)) {
