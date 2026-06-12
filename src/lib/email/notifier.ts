@@ -165,6 +165,114 @@ export async function sendVacationDecisionNotification(p: VacationDecisionEmailP
   }
 }
 
+export interface AnniversaryEmailParams {
+  to: string;
+  employeeName: string;
+  years: number;
+}
+
+export async function sendAnniversaryNotification(p: AnniversaryEmailParams): Promise<void> {
+  const transport = getTransport();
+  if (!transport || !p.to.includes("@")) {
+    console.warn(`[email] saltando aniversario ${p.employeeName} (sin destino válido)`);
+    return;
+  }
+
+  const yearsLabel = p.years === 1 ? "1 año" : `${p.years} años`;
+  const subject = `¡Feliz aniversario, ${p.employeeName}! ${yearsLabel} en Ecosistemas`;
+  const text = [
+    `¡Felicidades, ${p.employeeName}!`,
+    ``,
+    `Hoy cumples ${yearsLabel} siendo parte del equipo Ecosistemas.`,
+    `Tu trayectoria y dedicación son muy valiosas para nosotros.`,
+    ``,
+    `¡Gracias por tu compromiso!`,
+    ``,
+    `Ecosistemas — Soluciones Innovadoras`,
+  ].join("\n");
+
+  const html = `
+    <div style="font-family: 'Segoe UI', Roboto, sans-serif; color: #141456; max-width: 480px;">
+      <div style="background: #141456; padding: 18px 24px;">
+        <span style="color: white; font-size: 16px; font-weight: 700; letter-spacing: 0.04em;">ECOSISTEMAS</span>
+      </div>
+      <div style="padding: 28px 24px; border: 1px solid #e5e7eb; border-top: 4px solid #B70B0F;">
+        <p style="font-size: 22px; font-weight: 700; margin: 0 0 8px;">¡Feliz aniversario!</p>
+        <p style="font-size: 15px; margin: 0 0 20px; color: #444;">
+          Hoy cumples <strong>${p.years === 1 ? "1 año" : `${p.years} años`}</strong> siendo parte del equipo Ecosistemas, <strong>${escapeHtml(p.employeeName)}</strong>.
+        </p>
+        <p style="font-size: 14px; color: #686868; margin: 0;">
+          Tu trayectoria y dedicación son muy valiosas para nosotros. ¡Gracias por tu compromiso!
+        </p>
+      </div>
+      <p style="font-size: 11px; color: #9ca3af; padding: 0 24px 16px;">Control de Vacaciones — Ecosistemas</p>
+    </div>
+  `;
+
+  try {
+    await transport.sendMail({
+      from: process.env.SMTP_FROM ?? process.env.SMTP_USER!,
+      to: p.to,
+      subject,
+      text,
+      html,
+    });
+    console.log(`[email] aniversario enviado → ${p.to}`);
+  } catch (err) {
+    console.error("[email] aniversario falló:", err);
+  }
+}
+
+export interface BirthdayEmailParams {
+  to: string;
+  employeeName: string;
+}
+
+export async function sendBirthdayNotification(p: BirthdayEmailParams): Promise<void> {
+  const transport = getTransport();
+  if (!transport || !p.to.includes("@")) {
+    console.warn(`[email] saltando cumpleaños ${p.employeeName} (sin destino válido)`);
+    return;
+  }
+
+  const subject = `¡Feliz cumpleaños, ${p.employeeName}!`;
+  const text = [
+    `¡Feliz cumpleaños, ${p.employeeName}!`,
+    ``,
+    `Todo el equipo Ecosistemas te desea un excelente día.`,
+    ``,
+    `Ecosistemas — Soluciones Innovadoras`,
+  ].join("\n");
+
+  const html = `
+    <div style="font-family: 'Segoe UI', Roboto, sans-serif; color: #141456; max-width: 480px;">
+      <div style="background: #141456; padding: 18px 24px;">
+        <span style="color: white; font-size: 16px; font-weight: 700; letter-spacing: 0.04em;">ECOSISTEMAS</span>
+      </div>
+      <div style="padding: 28px 24px; border: 1px solid #e5e7eb; border-top: 4px solid #B70B0F;">
+        <p style="font-size: 22px; font-weight: 700; margin: 0 0 8px;">¡Feliz cumpleaños!</p>
+        <p style="font-size: 15px; margin: 0 0 20px; color: #444;">
+          <strong>${escapeHtml(p.employeeName)}</strong>, todo el equipo Ecosistemas te desea un excelente día.
+        </p>
+      </div>
+      <p style="font-size: 11px; color: #9ca3af; padding: 0 24px 16px;">Control de Vacaciones — Ecosistemas</p>
+    </div>
+  `;
+
+  try {
+    await transport.sendMail({
+      from: process.env.SMTP_FROM ?? process.env.SMTP_USER!,
+      to: p.to,
+      subject,
+      text,
+      html,
+    });
+    console.log(`[email] cumpleaños enviado → ${p.to}`);
+  } catch (err) {
+    console.error("[email] cumpleaños falló:", err);
+  }
+}
+
 const fmt = formatDateMX;
 
 function escapeHtml(s: string): string {

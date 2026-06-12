@@ -74,6 +74,7 @@ export interface ErpEmpleado {
   Em_Reporta: number | null;
   Em_Fecha_Ingreso: Date | null;
   Em_Fecha_Baja: Date | null;
+  Em_Fecha_Nacimiento: Date | null;
   De_Cve_Departamento_Empleado: number | null;
   Pe_Cve_Puesto_Empleado: number | null;
   Es_Cve_Estado: string | null;
@@ -86,6 +87,7 @@ export async function getEmpleadosRaw(since?: string): Promise<ErpEmpleado[]> {
   const baseCols = `
     Em_Cve_Empleado, Em_Codigo_Alterno, Em_Nombre, Em_Apellido_Paterno, Em_Apellido_Materno,
     Em_Email, Em_Email_2, Sc_Cve_Sucursal, Em_Reporta, Em_Fecha_Ingreso, Em_Fecha_Baja,
+    Em_Fecha_Nacimiento,
     De_Cve_Departamento_Empleado, Pe_Cve_Puesto_Empleado, Es_Cve_Estado, Fecha_Ult_Modif
   `;
   // Filtros:

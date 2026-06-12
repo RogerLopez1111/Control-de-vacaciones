@@ -10,7 +10,9 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "sync:erp": "tsx scripts/sync-erp.ts",
-    "auth:bootstrap": "tsx scripts/bootstrap-auth.ts"
+    "auth:bootstrap": "tsx scripts/bootstrap-auth.ts",
+    "notify:celebrations": "tsx scripts/notify-celebrations.ts",
+    "sync:full": "tsx scripts/sync-erp.ts && tsx scripts/bootstrap-auth.ts && tsx scripts/notify-celebrations.ts"
   },
   "dependencies": {
     "next": "^15.0.0",
