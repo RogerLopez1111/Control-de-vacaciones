@@ -8,6 +8,7 @@ import { AjusteForm } from "./ajuste-form";
 import { RoleToggle } from "./role-toggle";
 import { AreaPicker } from "./area-picker";
 import { NotificationEmailForm } from "./notification-email-form";
+import { PasswordResetForm } from "./password-reset-form";
 
 export default async function EmpleadoDetallePage({ params }: { params: Promise<{ id: string }> }) {
   const { id: idStr } = await params;
@@ -21,7 +22,7 @@ export default async function EmpleadoDetallePage({ params }: { params: Promise<
     : { data: null };
 
   const { data: e } = await supabase.from("employees")
-    .select("id, codigo_alterno, nombre, apellido_paterno, apellido_materno, email, notification_email, branch_id, hire_date, is_admin, password_changed_at, area_id, manager_employee_id")
+    .select("id, codigo_alterno, nombre, apellido_paterno, apellido_materno, email, notification_email, branch_id, hire_date, is_admin, auth_user_id, password_changed_at, area_id, manager_employee_id")
     .eq("id", id)
     .single();
 
@@ -91,6 +92,15 @@ export default async function EmpleadoDetallePage({ params }: { params: Promise<
           employeeId={id}
           currentNotificationEmail={e.notification_email}
           fallbackEmail={e.email}
+        />
+      </section>
+
+      <section>
+        <h2 className="text-lg font-semibold text-brand-navy mb-2">Contraseña</h2>
+        <PasswordResetForm
+          employeeId={id}
+          hasAuthAccount={!!e.auth_user_id}
+          hireYear={e.hire_date.slice(0, 4)}
         />
       </section>
 
