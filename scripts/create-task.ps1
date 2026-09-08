@@ -5,9 +5,8 @@ $action = New-ScheduledTaskAction `
     -WorkingDirectory "C:\Users\Ecosistemas\Desktop\Control de vacaciones"
 
 $trigger = New-ScheduledTaskTrigger `
-    -Weekly `
-    -DaysOfWeek Monday,Tuesday,Wednesday,Thursday,Friday `
-    -At "00:00"
+    -Daily `
+    -At "06:00"
 
 $settings = New-ScheduledTaskSettingsSet `
     -ExecutionTimeLimit (New-TimeSpan -Hours 1) `
