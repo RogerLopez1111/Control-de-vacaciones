@@ -37,6 +37,17 @@ function getCliArg(name: string): string | null {
 
 const CHUNK = 200;
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function terminationDate(e: Record<string, any>): string | null {
+  if (e.Em_Fecha_Baja) return (e.Em_Fecha_Baja as string).slice(0, 10);
+  // Baja sin fecha capturada en el ERP: usamos Fecha_Ult_Modif como respaldo
+  // para que el empleado no quede "activo" indefinidamente en la app.
+  if (String(e.Es_Cve_Estado ?? "").trim() === "BA" && e.Fecha_Ult_Modif) {
+    return (e.Fecha_Ult_Modif as string).slice(0, 10);
+  }
+  return null;
+}
+
 // ---------------------------------------------------------------------------
 async function syncSucursales() {
   const rows = await getSucursalesRaw();
@@ -72,7 +83,7 @@ async function syncEmpleados(since: string | null) {
       email: ((e.Em_Email ?? e.Em_Email_2) ?? "").toLowerCase().trim() || null,
       branch_id: e.Sc_Cve_Sucursal,
       hire_date: (e.Em_Fecha_Ingreso as string).slice(0, 10),
-      termination_date: e.Em_Fecha_Baja ? (e.Em_Fecha_Baja as string).slice(0, 10) : null,
+      termination_date: terminationDate(e),
       birth_date: e.Em_Fecha_Nacimiento ? (e.Em_Fecha_Nacimiento as string).slice(0, 10) : null,
       departamento_id: e.De_Cve_Departamento_Empleado,
       puesto_id: e.Pe_Cve_Puesto_Empleado,

@@ -5,7 +5,8 @@
  *   - env vars: MSSQL_SERVER, MSSQL_DATABASE, MSSQL_USER, MSSQL_PASSWORD
  *   - local SQL Server: trustServerCertificate=true, encrypt=false
  *   - lazy singleton ConnectionPool (max=10)
- *   - filter Es_Cve_Estado = 'AC' for "activo"
+ *   - filter Es_Cve_Estado = 'AC' for "activo" (Sucursal only — Empleado brings
+ *     both AC and BA so sync-erp.ts can populate termination_date on baja)
  */
 import sql from "mssql";
 
@@ -91,13 +92,14 @@ export async function getEmpleadosRaw(since?: string): Promise<ErpEmpleado[]> {
     De_Cve_Departamento_Empleado, Pe_Cve_Puesto_Empleado, Es_Cve_Estado, Fecha_Ult_Modif
   `;
   // Filtros:
-  //  1) Es_Cve_Estado = 'AC' — solo empleados activos.
-  //  2) Excluir comisionistas (departamento 9 ó puesto 26). Los comisionistas
-  //     no son empleados con derechos LFT — son figuras asimiladas a salarios
-  //     y no devengan vacaciones en este sistema.
+  //  Traemos AC y BA (no solo activos): si filtráramos por AC, un empleado
+  //  que causa baja deja de aparecer en el resultado y su fila en Supabase
+  //  nunca se actualiza con termination_date — quedaría "activo" para siempre.
+  //  Excluimos comisionistas (departamento 9 ó puesto 26): no son empleados
+  //  con derechos LFT — son figuras asimiladas a salarios y no devengan
+  //  vacaciones en este sistema.
   const filters = `
-    LTRIM(RTRIM(Es_Cve_Estado)) = 'AC'
-    AND NOT (De_Cve_Departamento_Empleado = 9 OR Pe_Cve_Puesto_Empleado = 26)
+    NOT (De_Cve_Departamento_Empleado = 9 OR Pe_Cve_Puesto_Empleado = 26)
   `;
   if (since) {
     req.input("since", sql.DateTime, new Date(since));
