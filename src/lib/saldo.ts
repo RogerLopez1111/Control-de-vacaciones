@@ -104,6 +104,17 @@ export interface CarryoverEntry {
  * ya capturados para el periodo de origen, además del arrastre que entró
  * desde el periodo previo. Así una corrida de N periodos arroja un saldo
  * acumulado correcto.
+ *
+ * `sinceDate`: para empleados contratados antes de que existiera esta app,
+ * no hay `vacation_requests` para sus periodos viejos — no porque no hayan
+ * tomado vacaciones, sino porque nunca se capturaron aquí. Sin este límite,
+ * cada periodo pre-app se calcularía como "tomado = 0" y el sobrante
+ * (entitlement completo) se acumularía año tras año, inflando el arrastre.
+ * Con `sinceDate`, los periodos que cerraron antes de esa fecha se ignoran
+ * por completo (ni entitlement ni arrastre entran), y la acumulación
+ * arranca en 0 en el primer periodo que cierra después. Pasar `null`
+ * conserva el comportamiento histórico (usado para empleados que ya
+ * tienen arrastres generados, para no pisar correcciones manuales previas).
  */
 export function computeCarryoverPlan(
   hireDate: Date,
@@ -117,7 +128,8 @@ export function computeCarryoverPlan(
   manualAdjustments: ReadonlyArray<{
     period_start: string;
     delta_days: number;
-  }> = []
+  }> = [],
+  sinceDate: Date | null = null,
 ): CarryoverEntry[] {
   const plan: CarryoverEntry[] = [];
   if (asOf < hireDate) return plan;
@@ -129,6 +141,7 @@ export function computeCarryoverPlan(
   for (let i = 0; i < closedYears; i++) {
     const periodStart = addYears(hireDate, i);
     const periodEnd = addYears(hireDate, i + 1);
+    if (sinceDate && periodEnd <= sinceDate) continue; // periodo pre-app: no reconstruible, no se cuenta
     const periodStartIso = isoDate(periodStart);
     const periodEndIso = isoDate(periodEnd);
 

@@ -129,6 +129,41 @@ describe("computeCarryoverPlan", () => {
     // Año 2: 12 − 20 = −8.
     expect(plan[1].delta_days).toBe(-8);
   });
+
+  describe("con sinceDate (empleados contratados antes del arranque de la app)", () => {
+    // hire 2015-06-01, asOf 2026-07-01 → 11 años cumplidos. Solo el último
+    // periodo (2025-06-01 → 2026-06-01) cierra después del arranque
+    // (2026-05-15); los 10 anteriores cerraron antes y se ignoran.
+    const hire = new Date(2015, 5, 1);
+    const asOf = new Date(2026, 6, 1);
+    const sinceDate = new Date(2026, 4, 15);
+
+    it("ignora por completo los periodos que cerraron antes de sinceDate", () => {
+      const plan = computeCarryoverPlan(hire, asOf, [], [], sinceDate);
+      expect(plan).toHaveLength(1);
+      expect(plan[0].source_period_start).toBe("2025-06-01");
+      // Sin sinceDate, el arrastre acumulado a esas alturas sería enorme
+      // (suma de 10 años de entitlement); con el límite, arranca en 0.
+      expect(plan[0].delta_days).toBe(22); // entitlement año 11, sin arrastre previo
+    });
+
+    it("sin sinceDate, el mismo caso acumula todo el historial (comportamiento viejo intacto)", () => {
+      const plan = computeCarryoverPlan(hire, asOf, [], []);
+      expect(plan.length).toBeGreaterThan(1);
+      expect(plan.at(-1)!.delta_days).toBeGreaterThan(100); // arrastre inflado por años pre-app
+    });
+
+    it("ajustes manuales de un periodo posterior a sinceDate se siguen aplicando", () => {
+      const plan = computeCarryoverPlan(
+        hire,
+        asOf,
+        [],
+        [{ period_start: "2025-06-01", delta_days: -5 }],
+        sinceDate,
+      );
+      expect(plan[0].delta_days).toBe(17); // 22 − 5
+    });
+  });
 });
 
 describe("isWithinPostAnniversaryWindow", () => {

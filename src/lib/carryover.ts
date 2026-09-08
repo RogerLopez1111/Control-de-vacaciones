@@ -11,6 +11,14 @@ import { lastAnniversary, yearsOfServiceAt } from "./lft-entitlement";
 export const CARRYOVER_WINDOW_DAYS = 30;
 
 /**
+ * Fecha en que esta app empezó a ser la fuente de verdad de `vacation_requests`.
+ * Para empleados contratados antes de esta fecha, los periodos que cerraron
+ * antes de aquí no tienen solicitudes capturadas (no porque no tomaran
+ * vacaciones, sino porque el sistema no existía) — ver `computeCarryoverPlan`.
+ */
+export const CARRYOVER_SAFE_SINCE = new Date(2026, 4, 15); // 2026-05-15
+
+/**
  * Determina si el empleado está "vencido" para procesar arrastre — es decir,
  * si su último aniversario cae dentro de los últimos `windowDays` días.
  *
@@ -105,14 +113,23 @@ export async function ensureCarryoverAdjustments(
 
   for (const emp of employees) {
     const hireDate = parseLocalDate(emp.hire_date);
+    const existingRows = existingByEmp.get(emp.id) ?? [];
+    // Si ya existe al menos un arrastre para este empleado, su cadena ya
+    // corrió con el algoritmo "completo" (sin sinceDate) alguna vez — puede
+    // traer encima correcciones manuales calibradas contra esos números.
+    // Recalcular con el límite ahora movería el piso y las descuadraría.
+    // Se deja el comportamiento histórico intacto para ellos; el límite
+    // `CARRYOVER_SAFE_SINCE` solo aplica a quienes arrancan de cero.
+    const sinceDate = existingRows.length > 0 ? null : CARRYOVER_SAFE_SINCE;
     const plan: Plan = computeCarryoverPlan(
       hireDate,
       asOf,
       reqByEmp.get(emp.id) ?? [],
       manualByEmp.get(emp.id) ?? [],
+      sinceDate,
     );
     const existingForEmp = new Map<string, ExistingCarryoverRow>();
-    for (const row of existingByEmp.get(emp.id) ?? []) {
+    for (const row of existingRows) {
       existingForEmp.set(row.period_start, row);
     }
 
@@ -142,7 +159,7 @@ export async function ensureCarryoverAdjustments(
 
     // Fila huérfana: existía un carryover para un periodo que ya no aparece
     // en el plan (p.ej. la hire_date se editó). La eliminamos.
-    for (const row of existingByEmp.get(emp.id) ?? []) {
+    for (const row of existingRows) {
       if (!seen.has(row.period_start)) toDelete.push(row.id);
     }
   }
