@@ -51,10 +51,13 @@ export interface ErpSucursal {
 
 export async function getSucursalesRaw(): Promise<ErpSucursal[]> {
   const p = await getPool();
+  // Trae todas las sucursales, no solo activas: empleados dados de baja
+  // pueden apuntar a una sucursal ya inactiva, y branch_id tiene FK contra
+  // esta tabla. El flag "activa" (calculado en sync-erp.ts) sigue marcando
+  // cuáles mostrar en selectores.
   const r = await p.request().query<ErpSucursal>(`
     SELECT Sc_Cve_Sucursal, Sc_Descripcion, Es_Cve_Estado
     FROM Sucursal
-    WHERE LTRIM(RTRIM(Es_Cve_Estado)) = 'AC'
     ORDER BY Sc_Descripcion
   `);
   return r.recordset;
