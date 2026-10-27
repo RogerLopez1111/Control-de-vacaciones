@@ -3,15 +3,16 @@ import Link from "next/link";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { AprobacionRow } from "./aprobacion-row";
 import { DecididaRow } from "./decidida-row";
+import { DecididasFilter } from "./decididas-filter";
 
 type Tab = "pendientes" | "decididas" | "mi-area";
 
 export default async function AprobacionesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ tab?: string }>;
+  searchParams: Promise<{ tab?: string; emp?: string }>;
 }) {
-  const { tab: tabParam } = await searchParams;
+  const { tab: tabParam, emp: empParam } = await searchParams;
 
   const supabase = await createSupabaseServerClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -50,6 +51,7 @@ export default async function AprobacionesPage({
   let pendientes: PendingShape[] = [];
   let decididas: DecidedShape[] = [];
   let miArea: PendingShape[] = [];
+  let decididasEmpOptions: { id: number; name: string }[] = [];
 
   if (tab === "pendientes") {
     const { data } = await supabase
@@ -64,7 +66,27 @@ export default async function AprobacionesPage({
       .select(selectCommon)
       .in("status", ["aprobada", "rechazada"])
       .order("decided_at", { ascending: false });
-    decididas = (data ?? []) as unknown as DecidedShape[];
+    const all = (data ?? []) as unknown as DecidedShape[];
+
+    // Opciones de empleado: solo quienes tienen solicitudes decididas
+    const empMap = new Map<number, string>();
+    for (const r of all) {
+      const e = Array.isArray(r.employee) ? r.employee[0] : r.employee;
+      if (e && !empMap.has(e.id)) {
+        empMap.set(e.id, `${e.nombre} ${e.apellido_paterno ?? ""}`.trim());
+      }
+    }
+    decididasEmpOptions = [...empMap.entries()]
+      .map(([id, name]) => ({ id, name }))
+      .sort((a, b) => a.name.localeCompare(b.name, "es"));
+
+    // Filtrar por empleado si se indicó uno válido
+    decididas = empParam
+      ? all.filter((r) => {
+          const e = Array.isArray(r.employee) ? r.employee[0] : r.employee;
+          return e && String(e.id) === empParam;
+        })
+      : all;
   } else if (tab === "mi-area" && isWatcher) {
     // Empleados que pertenecen a mis áreas observadas
     const { data: watchedEmps } = await supabase
@@ -126,13 +148,24 @@ export default async function AprobacionesPage({
             ))}
           </div>
         )
-      ) : decididas.length === 0 ? (
-        <p className="text-sm text-neutral-500">Aún no hay solicitudes decididas en tu ámbito.</p>
       ) : (
-        <div className="space-y-3">
-          {decididas.map((r) => (
-            <DecididaRow key={r.id} request={r} />
-          ))}
+        <div className="space-y-4">
+          {decididasEmpOptions.length > 0 && (
+            <DecididasFilter options={decididasEmpOptions} selected={empParam ?? ""} />
+          )}
+          {decididas.length === 0 ? (
+            <p className="text-sm text-neutral-500">
+              {empParam
+                ? "Este empleado no tiene solicitudes decididas."
+                : "Aún no hay solicitudes decididas en tu ámbito."}
+            </p>
+          ) : (
+            <div className="space-y-3">
+              {decididas.map((r) => (
+                <DecididaRow key={r.id} request={r} />
+              ))}
+            </div>
+          )}
         </div>
       )}
     </main>
