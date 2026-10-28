@@ -165,10 +165,17 @@ export default async function CalendarioPage({
                 minHeight: `${minRowHeight}px`,
               }}
             >
-              {w.days.map((d, di) => (
+              {w.days.map((d, di) => {
+                const isWeekend = di >= 5;
+                const bg = !d.inCurrentMonth
+                  ? "bg-neutral-100"
+                  : isWeekend
+                    ? "bg-neutral-50"
+                    : "bg-white";
+                return (
                 <div
                   key={`bg-${di}`}
-                  className={`border-r border-b border-neutral-100 ${d.inCurrentMonth ? "bg-white" : "bg-neutral-50"}`}
+                  className={`border-r border-b border-neutral-200 ${bg}`}
                   style={{ gridColumn: di + 1, gridRow: `1 / ${w.laneCount + 2}` }}
                 >
                   <div className="px-2 pt-1.5 pb-0.5 flex justify-end">
@@ -184,7 +191,8 @@ export default async function CalendarioPage({
                     </span>
                   </div>
                 </div>
-              ))}
+                );
+              })}
 
               {w.bars.map((b, bi) => {
                 const color = BAR_COLORS[b.employeeId % BAR_COLORS.length];
