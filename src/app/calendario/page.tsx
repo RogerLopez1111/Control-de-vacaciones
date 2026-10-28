@@ -143,7 +143,7 @@ export default async function CalendarioPage({
         </div>
       )}
 
-      <div className="border border-neutral-200 border-t-0 bg-white">
+      <div className="border border-neutral-300 border-t-0 bg-white">
         {/* Encabezado días de la semana */}
         <div className="grid grid-cols-7 bg-brand-navy/90">
           {WEEKDAYS.map((d) => (
@@ -175,7 +175,7 @@ export default async function CalendarioPage({
                 return (
                 <div
                   key={`bg-${di}`}
-                  className={`border-r border-b border-neutral-200 ${bg}`}
+                  className={`border-r border-b border-neutral-300 ${bg}`}
                   style={{ gridColumn: di + 1, gridRow: `1 / ${w.laneCount + 2}` }}
                 >
                   <div className="px-2 pt-1.5 pb-0.5 flex justify-end">
