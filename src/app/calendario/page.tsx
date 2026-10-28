@@ -196,28 +196,42 @@ export default async function CalendarioPage({
 
               {w.bars.map((b, bi) => {
                 const color = BAR_COLORS[b.employeeId % BAR_COLORS.length];
+                const r = "10px";
+                // Reetiqueta cada segmento que arranca en lunes: así las
+                // vacaciones de varias semanas muestran el nombre cada semana,
+                // no solo en la semana donde empiezan.
+                const showLabel = b.isStart || b.startCol === 1;
                 return (
                   <div
                     key={`bar-${b.requestId}-${b.lane}-${bi}`}
                     title={b.isPreview ? `${b.fullName} (pendiente)` : b.fullName}
-                    className="relative z-10 mx-px my-0.5 h-[22px] flex items-center px-2 text-[11px] font-medium truncate text-white"
+                    className="group relative z-10 h-[20px] my-0.5 flex items-center text-[11px] font-semibold tracking-wide truncate text-white transition-shadow hover:shadow-md"
                     style={{
                       gridColumn: `${b.startCol} / ${b.endCol + 1}`,
                       gridRow: b.lane + 2,
+                      // Extremos reales redondeados (cápsula); las
+                      // continuaciones corren a ras del borde para leerse
+                      // como una barra que sigue.
+                      marginLeft: b.isStart ? 4 : 0,
+                      marginRight: b.isEnd ? 4 : 0,
+                      paddingLeft: b.isStart ? 10 : 8,
+                      paddingRight: b.isEnd ? 10 : 8,
+                      borderTopLeftRadius: b.isStart ? r : 0,
+                      borderBottomLeftRadius: b.isStart ? r : 0,
+                      borderTopRightRadius: b.isEnd ? r : 0,
+                      borderBottomRightRadius: b.isEnd ? r : 0,
                       backgroundColor: color,
                       backgroundImage: b.isPreview
                         ? `repeating-linear-gradient(-45deg, transparent 0px, transparent 4px, rgba(255,255,255,0.28) 4px, rgba(255,255,255,0.28) 8px)`
                         : undefined,
-                      borderLeft: b.isStart
-                        ? `3px ${b.isPreview ? "dashed" : "solid"} ${dimColor(color)}`
-                        : "none",
-                      outline: b.isPreview ? `1.5px dashed ${dimColor(color)}` : undefined,
-                      outlineOffset: b.isPreview ? "-1px" : undefined,
-                      opacity: b.isPreview ? 0.82 : 0.92,
+                      boxShadow: b.isPreview
+                        ? `inset 0 0 0 1.5px ${dimColor(color)}`
+                        : "0 1px 2px rgba(20,20,86,0.18)",
+                      opacity: b.isPreview ? 0.9 : 1,
                     }}
                   >
                     <span className="truncate">
-                      {b.isStart ? (b.isPreview ? `${b.fullName} (pendiente)` : b.fullName) : ""}
+                      {showLabel ? (b.isPreview ? `${b.fullName} (pendiente)` : b.fullName) : ""}
                     </span>
                   </div>
                 );
